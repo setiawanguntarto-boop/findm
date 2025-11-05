@@ -18,7 +18,7 @@ const Navigation = () => {
             <a href="/product" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Product
             </a>
-            <a href="/#use-cases" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            <a href="/use-cases" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Use Cases
             </a>
             <a href="#" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -51,7 +51,7 @@ const Navigation = () => {
             <a href="/product" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">
               Product
             </a>
-            <a href="/#use-cases" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">
+            <a href="/use-cases" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">
               Use Cases
             </a>
             <a href="#" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">

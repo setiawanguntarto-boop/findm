@@ -1,14 +1,14 @@
 import Navigation from "@/components/Navigation";
-import HeroSection from "@/components/HeroSection";
+import UseCasesSection from "@/components/UseCasesSection";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
 
-const Index = () => {
+const UseCases = () => {
   return (
     <div className="min-h-screen">
       <Navigation />
-      <main>
-        <HeroSection />
+      <main className="pt-16">
+        <UseCasesSection />
         <CTASection />
       </main>
       <Footer />
@@ -16,4 +16,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default UseCases;
