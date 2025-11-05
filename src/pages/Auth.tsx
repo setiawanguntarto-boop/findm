@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import logoFull from "@/assets/logo-full.png";
+import PageTransition from "@/components/PageTransition";
 
 const emailSchema = z.string().email("Invalid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -120,11 +121,12 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-muted p-4">
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-8">
-          <img src={logoFull} alt="find.me" className="h-8" />
-        </div>
+    <PageTransition>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-muted p-4">
+        <div className="w-full max-w-md">
+          <div className="flex justify-center mb-8">
+            <img src={logoFull} alt="find.me" className="h-8" />
+          </div>
 
         <Card>
           <CardHeader>
@@ -218,12 +220,13 @@ const Auth = () => {
         </Card>
 
         <div className="text-center mt-4">
-          <Button variant="link" onClick={() => navigate("/")}>
-            Back to Home
+          <Button variant="link" asChild>
+            <Link to="/">Back to Home</Link>
           </Button>
         </div>
       </div>
     </div>
+    </PageTransition>
   );
 };
 

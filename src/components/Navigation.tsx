@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Search, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoFull from "@/assets/logo-full.png";
@@ -10,28 +11,28 @@ const Navigation = () => {
     <header className="fixed top-0 left-0 right-0 h-16 bg-background/90 backdrop-blur-md border-b border-border z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
         <div className="flex justify-between items-center h-full">
-          <a href="#" className="flex items-center space-x-2 flex-shrink-0" aria-label="Find.me Homepage">
+          <Link to="/" className="flex items-center space-x-2 flex-shrink-0" aria-label="Find.me Homepage">
             <img src={logoFull} alt="find.me" className="h-6" />
-          </a>
+          </Link>
 
           <nav className="hidden md:flex items-center space-x-8">
-            <a href="/product" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/product" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Product
-            </a>
-            <a href="/use-cases" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            </Link>
+            <Link to="/use-cases" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Use Cases
-            </a>
-            <a href="#" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            </Link>
+            <Link to="#" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Pricing
-            </a>
+            </Link>
           </nav>
 
           <div className="hidden md:flex items-center space-x-3">
             <Button variant="outline" size="sm" asChild>
-              <a href="/auth">Log In</a>
+              <Link to="/auth">Log In</Link>
             </Button>
             <Button size="sm" asChild>
-              <a href="/auth">Get Started</a>
+              <Link to="/auth">Get Started</Link>
             </Button>
           </div>
 
@@ -48,22 +49,22 @@ const Navigation = () => {
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-16 left-0 right-0 bg-background shadow-lg border-b border-border">
           <div className="px-4 pt-2 pb-4 space-y-2">
-            <a href="/product" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">
+            <Link to="/product" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
               Product
-            </a>
-            <a href="/use-cases" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">
+            </Link>
+            <Link to="/use-cases" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
               Use Cases
-            </a>
-            <a href="#" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">
+            </Link>
+            <Link to="#" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
               Pricing
-            </a>
+            </Link>
           </div>
           <div className="px-4 pb-4 border-t border-border pt-4 space-y-3">
             <Button className="w-full" asChild>
-              <a href="/auth">Get Started</a>
+              <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>Get Started</Link>
             </Button>
             <Button variant="outline" className="w-full" asChild>
-              <a href="/auth">Log In</a>
+              <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>Log In</Link>
             </Button>
           </div>
         </div>

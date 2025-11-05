@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const HeroSection = () => {
@@ -43,10 +44,10 @@ const HeroSection = () => {
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4 reveal">
           <Button size="lg" className="text-lg px-8" asChild>
-            <a href="/auth">Get Started</a>
+            <Link to="/auth">Get Started</Link>
           </Button>
           <Button size="lg" variant="outline" className="text-lg px-8" asChild>
-            <a href="/product">Learn More</a>
+            <Link to="/product">Learn More</Link>
           </Button>
         </div>
       </div>

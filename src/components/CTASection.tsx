@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const CTASection = () => {
@@ -34,7 +35,7 @@ const CTASection = () => {
           Start remembering who matters.
         </h2>
         <Button size="lg" variant="secondary" className="px-8 text-lg reveal" asChild>
-          <a href="/auth">Get Started — It's Free</a>
+          <Link to="/auth">Get Started — It's Free</Link>
         </Button>
       </div>
     </section>

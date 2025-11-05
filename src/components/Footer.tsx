@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import logoFull from "@/assets/logo-full.png";
 
 const Footer = () => {
@@ -6,7 +7,9 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="col-span-1 md:col-span-2 lg:col-span-1">
-            <img src={logoFull} alt="find.me" className="h-6 mb-4" />
+            <Link to="/">
+              <img src={logoFull} alt="find.me" className="h-6 mb-4" />
+            </Link>
             <p className="text-sm text-muted-foreground">
               Beyond contacts — remember the context.
             </p>
@@ -15,28 +18,28 @@ const Footer = () => {
           <div>
             <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">Product</h4>
             <ul className="space-y-3">
-              <li><a href="/product" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">How It Works</a></li>
-              <li><a href="/use-cases" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Use Cases</a></li>
-              <li><a href="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Pricing</a></li>
-              <li><a href="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Download</a></li>
+              <li><Link to="/product" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">How It Works</Link></li>
+              <li><Link to="/use-cases" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Use Cases</Link></li>
+              <li><Link to="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Pricing</Link></li>
+              <li><Link to="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Download</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">Company</h4>
             <ul className="space-y-3">
-              <li><a href="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">About Us</a></li>
-              <li><a href="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Blog</a></li>
-              <li><a href="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Careers</a></li>
+              <li><Link to="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">About Us</Link></li>
+              <li><Link to="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Blog</Link></li>
+              <li><Link to="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Careers</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">Legal</h4>
             <ul className="space-y-3">
-              <li><a href="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Contact</a></li>
+              <li><Link to="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Privacy Policy</Link></li>
+              <li><Link to="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Terms of Service</Link></li>
+              <li><Link to="#" className="text-base text-muted-foreground hover:text-foreground hover:underline transition-colors">Contact</Link></li>
             </ul>
           </div>
         </div>
