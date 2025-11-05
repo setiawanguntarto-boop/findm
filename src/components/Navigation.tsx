@@ -27,11 +27,11 @@ const Navigation = () => {
           </nav>
 
           <div className="hidden md:flex items-center space-x-3">
-            <Button variant="outline" size="sm">
-              Log In
+            <Button variant="outline" size="sm" asChild>
+              <a href="/auth">Log In</a>
             </Button>
-            <Button size="sm">
-              Get Started
+            <Button size="sm" asChild>
+              <a href="/auth">Get Started</a>
             </Button>
           </div>
 
@@ -59,8 +59,12 @@ const Navigation = () => {
             </a>
           </div>
           <div className="px-4 pb-4 border-t border-border pt-4 space-y-3">
-            <Button className="w-full">Get Started</Button>
-            <Button variant="outline" className="w-full">Log In</Button>
+            <Button className="w-full" asChild>
+              <a href="/auth">Get Started</a>
+            </Button>
+            <Button variant="outline" className="w-full" asChild>
+              <a href="/auth">Log In</a>
+            </Button>
           </div>
         </div>
       )}

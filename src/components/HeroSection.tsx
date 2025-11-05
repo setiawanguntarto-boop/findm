@@ -42,11 +42,11 @@ const HeroSection = () => {
           Your AI-powered contact memory. Understand who, when, and why you connected—beyond the business card.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4 reveal">
-          <Button size="lg" className="text-lg px-8">
-            Get Started
+          <Button size="lg" className="text-lg px-8" asChild>
+            <a href="/auth">Get Started</a>
           </Button>
-          <Button size="lg" variant="outline" className="text-lg px-8">
-            Learn More
+          <Button size="lg" variant="outline" className="text-lg px-8" asChild>
+            <a href="#how-it-works">Learn More</a>
           </Button>
         </div>
       </div>

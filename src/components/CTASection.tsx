@@ -33,8 +33,8 @@ const CTASection = () => {
         <h2 className="text-4xl md:text-5xl font-extrabold text-primary-foreground mb-8 reveal">
           Start remembering who matters.
         </h2>
-        <Button size="lg" variant="secondary" className="px-8 text-lg reveal">
-          Get Started — It's Free
+        <Button size="lg" variant="secondary" className="px-8 text-lg reveal" asChild>
+          <a href="/auth">Get Started — It's Free</a>
         </Button>
       </div>
     </section>
