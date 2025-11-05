@@ -1,16 +1,16 @@
 import Navigation from "@/components/Navigation";
-import HeroSection from "@/components/HeroSection";
-import UseCasesSection from "@/components/UseCasesSection";
+import HowItWorksSection from "@/components/HowItWorksSection";
+import AIContextSection from "@/components/AIContextSection";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
 
-const Index = () => {
+const Product = () => {
   return (
     <div className="min-h-screen">
       <Navigation />
-      <main>
-        <HeroSection />
-        <UseCasesSection />
+      <main className="pt-16">
+        <HowItWorksSection />
+        <AIContextSection />
         <CTASection />
       </main>
       <Footer />
@@ -18,4 +18,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Product;

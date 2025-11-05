@@ -46,7 +46,7 @@ const HeroSection = () => {
             <a href="/auth">Get Started</a>
           </Button>
           <Button size="lg" variant="outline" className="text-lg px-8" asChild>
-            <a href="#how-it-works">Learn More</a>
+            <a href="/product">Learn More</a>
           </Button>
         </div>
       </div>

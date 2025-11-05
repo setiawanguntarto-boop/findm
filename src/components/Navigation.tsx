@@ -15,10 +15,10 @@ const Navigation = () => {
           </a>
 
           <nav className="hidden md:flex items-center space-x-8">
-            <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            <a href="/product" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Product
             </a>
-            <a href="#use-cases" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            <a href="/#use-cases" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Use Cases
             </a>
             <a href="#" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -48,10 +48,10 @@ const Navigation = () => {
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-16 left-0 right-0 bg-background shadow-lg border-b border-border">
           <div className="px-4 pt-2 pb-4 space-y-2">
-            <a href="#how-it-works" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">
+            <a href="/product" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">
               Product
             </a>
-            <a href="#use-cases" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">
+            <a href="/#use-cases" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">
               Use Cases
             </a>
             <a href="#" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted">
