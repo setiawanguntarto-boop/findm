@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logoFull from "@/assets/logo-full.png";
+import logoFull from "@/assets/logo-new.png";
 
 const Navigation = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
