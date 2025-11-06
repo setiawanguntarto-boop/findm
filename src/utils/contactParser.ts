@@ -12,6 +12,19 @@ export interface CSVParseResult {
   data: string[][];
 }
 
+// Sanitize values to prevent formula injection in spreadsheets
+const sanitizeFormulaInjection = (value: string): string => {
+  if (!value) return value;
+  
+  const trimmed = value.trim();
+  // Check if starts with formula characters
+  if (/^[=+\-@]/.test(trimmed)) {
+    // Prefix with single quote to prevent formula execution
+    return "'" + trimmed;
+  }
+  return trimmed;
+};
+
 // Get CSV headers and sample data
 export const getCSVHeaders = (content: string): CSVParseResult => {
   const lines = content.split('\n').filter(line => line.trim());
@@ -53,11 +66,13 @@ export const parseCSVWithMapping = (
     };
 
     headers.forEach((header, index) => {
-      const value = values[index]?.trim();
-      if (!value) return;
+      const rawValue = values[index]?.trim();
+      if (!rawValue) return;
 
       const targetField = mapping[header];
       if (!targetField || targetField === 'ignore') return;
+
+      const value = sanitizeFormulaInjection(rawValue);
 
       switch (targetField) {
         case 'name':
@@ -107,8 +122,10 @@ export const parseCSV = (content: string): ParsedContact[] => {
     };
 
     headers.forEach((header, index) => {
-      const value = values[index]?.trim();
-      if (!value) return;
+      const rawValue = values[index]?.trim();
+      if (!rawValue) return;
+
+      const value = sanitizeFormulaInjection(rawValue);
 
       // Map common CSV headers to our contact fields
       if (header.includes('name') || header.includes('full name')) {
@@ -181,38 +198,38 @@ export const parseVCF = (content: string): ParsedContact[] => {
       
       // Parse name (FN = formatted name)
       if (trimmedLine.startsWith('FN:')) {
-        contact.name = trimmedLine.substring(3).trim();
+        contact.name = sanitizeFormulaInjection(trimmedLine.substring(3).trim());
       }
       // Alternative: N field (structured name)
       else if (trimmedLine.startsWith('N:') && !contact.name) {
         const parts = trimmedLine.substring(2).split(';');
-        contact.name = `${parts[1] || ''} ${parts[0] || ''}`.trim();
+        contact.name = sanitizeFormulaInjection(`${parts[1] || ''} ${parts[0] || ''}`.trim());
       }
       // Email
       else if (trimmedLine.startsWith('EMAIL')) {
         const emailMatch = trimmedLine.match(/:(.*)/);
         if (emailMatch) {
-          contact.email = emailMatch[1].trim();
+          contact.email = sanitizeFormulaInjection(emailMatch[1].trim());
         }
       }
       // Phone
       else if (trimmedLine.startsWith('TEL')) {
         const phoneMatch = trimmedLine.match(/:(.*)/);
         if (phoneMatch) {
-          contact.phone = phoneMatch[1].trim();
+          contact.phone = sanitizeFormulaInjection(phoneMatch[1].trim());
         }
       }
       // Organization
       else if (trimmedLine.startsWith('ORG:')) {
-        contact.company = trimmedLine.substring(4).trim();
+        contact.company = sanitizeFormulaInjection(trimmedLine.substring(4).trim());
       }
       // Title
       else if (trimmedLine.startsWith('TITLE:')) {
-        contact.title = trimmedLine.substring(6).trim();
+        contact.title = sanitizeFormulaInjection(trimmedLine.substring(6).trim());
       }
       // Note
       else if (trimmedLine.startsWith('NOTE:')) {
-        contact.notes = trimmedLine.substring(5).trim();
+        contact.notes = sanitizeFormulaInjection(trimmedLine.substring(5).trim());
       }
     }
 
