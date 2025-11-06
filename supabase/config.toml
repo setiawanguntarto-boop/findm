@@ -1,1 +1,4 @@
 project_id = "khrvmlegzzbqmfrkashk"
+
+[functions.extract-business-card]
+verify_jwt = true

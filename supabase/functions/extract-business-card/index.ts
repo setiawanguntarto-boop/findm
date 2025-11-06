@@ -1,7 +1,10 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +18,31 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Received business card extraction request');
+    // Verify JWT and extract user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('Missing Authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Missing authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Authentication failed:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Received business card extraction request from user: ${user.id}`);
     const { imageBase64 } = await req.json();
 
     if (!imageBase64) {
@@ -127,7 +154,7 @@ serve(async (req) => {
       throw new Error('Failed to parse contact information from AI response');
     }
 
-    console.log('Successfully extracted contact info:', contactInfo);
+    console.log(`Successfully extracted contact info for user ${user.id}:`, contactInfo);
 
     return new Response(
       JSON.stringify({ 
@@ -141,13 +168,17 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in extract-business-card function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
+    // Return appropriate status code based on error type
+    const statusCode = errorMessage.includes('Unauthorized') ? 401 : 500;
+    
     return new Response(
       JSON.stringify({ 
         success: false,
         error: errorMessage 
       }),
       {
-        status: 500,
+        status: statusCode,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
