@@ -1,20 +1,10 @@
 import { Link } from "react-router-dom";
-import logoFull from "@/assets/logo-full.png";
 
 const Footer = () => {
   return (
     <footer className="py-20 bg-muted border-t border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-          <div className="col-span-1 md:col-span-2 lg:col-span-1">
-            <Link to="/">
-              <img src={logoFull} alt="find.me" className="h-6 mb-4" />
-            </Link>
-            <p className="text-sm text-muted-foreground">
-              Beyond contacts — remember the context.
-            </p>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           <div>
             <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">Product</h4>
             <ul className="space-y-3">
