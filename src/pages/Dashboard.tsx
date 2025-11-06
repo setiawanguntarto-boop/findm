@@ -38,6 +38,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [cardFile, setCardFile] = useState<File | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [extractedData, setExtractedData] = useState<any>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const cardInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -99,14 +101,65 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  const handleCardUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCardUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setCardFile(file);
+    if (!file) return;
+
+    setCardFile(file);
+    setIsProcessing(true);
+
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      
+      reader.onloadend = async () => {
+        const base64data = reader.result as string;
+        
+        toast({
+          title: "Processing...",
+          description: "Extracting contact information from business card...",
+        });
+
+        // Call edge function
+        const { data, error } = await supabase.functions.invoke('extract-business-card', {
+          body: { imageBase64: base64data }
+        });
+
+        if (error) {
+          console.error('Error calling edge function:', error);
+          throw error;
+        }
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to extract contact information');
+        }
+
+        console.log('Extracted contact info:', data.contactInfo);
+        
+        setExtractedData(data.contactInfo);
+        setIsAddDialogOpen(true);
+        
+        toast({
+          title: "Success!",
+          description: "Contact information extracted successfully",
+        });
+      };
+
+      reader.onerror = () => {
+        throw new Error('Failed to read image file');
+      };
+
+    } catch (error: any) {
+      console.error('Error extracting business card:', error);
       toast({
-        title: "Business card uploaded",
-        description: `${file.name} - OCR scanning coming soon!`,
+        title: "Error",
+        description: error.message || "Failed to extract contact information",
+        variant: "destructive",
       });
+      setCardFile(null);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -175,7 +228,13 @@ const Dashboard = () => {
                 htmlFor="name-card-upload"
                 className="flex flex-col items-center justify-center w-full h-48 p-6 border-2 border-dashed border-border rounded-lg text-center cursor-pointer hover:border-foreground transition-colors"
               >
-                {cardFile ? (
+                {isProcessing ? (
+                  <>
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
+                    <p className="text-lg font-medium text-foreground">Processing...</p>
+                    <p className="text-sm text-muted-foreground mt-2">Extracting contact information</p>
+                  </>
+                ) : cardFile ? (
                   <>
                     <CheckCircle2 className="w-12 h-12 text-primary mb-2" />
                     <p className="text-lg font-medium text-foreground">{cardFile.name}</p>
@@ -335,8 +394,15 @@ const Dashboard = () => {
 
       <AddContactDialog
         open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
+        onOpenChange={(open) => {
+          setIsAddDialogOpen(open);
+          if (!open) {
+            setExtractedData(null);
+            setCardFile(null);
+          }
+        }}
         onContactAdded={fetchContacts}
+        initialData={extractedData}
       />
 
       <ContactDetailDialog

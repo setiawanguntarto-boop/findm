@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,16 +12,23 @@ interface AddContactDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onContactAdded: () => void;
+  initialData?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    company?: string;
+    title?: string;
+  };
 }
 
-const AddContactDialog = ({ open, onOpenChange, onContactAdded }: AddContactDialogProps) => {
+const AddContactDialog = ({ open, onOpenChange, onContactAdded, initialData }: AddContactDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    company: "",
-    title: "",
+    name: initialData?.name || "",
+    email: initialData?.email || "",
+    phone: initialData?.phone || "",
+    company: initialData?.company || "",
+    title: initialData?.title || "",
     tags: "",
     context_notes: "",
     meeting_location: "",
@@ -29,6 +36,20 @@ const AddContactDialog = ({ open, onOpenChange, onContactAdded }: AddContactDial
   });
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Update form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      setFormData(prev => ({
+        ...prev,
+        name: initialData.name || prev.name,
+        email: initialData.email || prev.email,
+        phone: initialData.phone || prev.phone,
+        company: initialData.company || prev.company,
+        title: initialData.title || prev.title,
+      }));
+    }
+  }, [initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
