@@ -22,6 +22,9 @@ const Navigation = () => {
             <Link to="/use-cases" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Use Cases
             </Link>
+            <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              About
+            </Link>
             <Link to="#" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Pricing
             </Link>
@@ -54,6 +57,9 @@ const Navigation = () => {
             </Link>
             <Link to="/use-cases" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
               Use Cases
+            </Link>
+            <Link to="/about" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
+              About
             </Link>
             <Link to="#" className="block px-3 py-2 rounded-lg text-base font-medium hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
               Pricing

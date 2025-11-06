@@ -9,6 +9,7 @@ import { AnimatePresence } from "framer-motion";
 import Index from "./pages/Index";
 import Product from "./pages/Product";
 import UseCases from "./pages/UseCases";
+import About from "./pages/About";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
@@ -24,6 +25,7 @@ function AnimatedRoutes() {
         <Route path="/" element={<Index />} />
         <Route path="/product" element={<Product />} />
         <Route path="/use-cases" element={<UseCases />} />
+        <Route path="/about" element={<About />} />
         <Route path="/auth" element={<Auth />} />
         <Route
           path="/dashboard"
