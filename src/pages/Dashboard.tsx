@@ -99,7 +99,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <img src={logoFull} alt="find.me" className="h-6" />
+          <img src={logoFull} alt="find.me" className="h-10" />
           
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
