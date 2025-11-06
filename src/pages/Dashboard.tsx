@@ -8,10 +8,11 @@ import ContactCard from "@/components/ContactCard";
 import AddContactDialog from "@/components/AddContactDialog";
 import ContactDetailDialog from "@/components/ContactDetailDialog";
 import ImportPreviewDialog from "@/components/ImportPreviewDialog";
+import FieldMappingDialog, { FieldMapping } from "@/components/FieldMappingDialog";
 import { useToast } from "@/hooks/use-toast";
 import logoFull from "@/assets/logo-full.png";
 import { useNavigate, Link } from "react-router-dom";
-import { parseContactFile, ParsedContact } from "@/utils/contactParser";
+import { parseContactFile, ParsedContact, needsManualMapping, getCSVHeaders } from "@/utils/contactParser";
 
 export interface Contact {
   id: string;
@@ -44,6 +45,10 @@ const Dashboard = () => {
   const [parsedContacts, setParsedContacts] = useState<ParsedContact[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
+  const [isFieldMappingOpen, setIsFieldMappingOpen] = useState(false);
+  const [csvHeaders, setCSVHeaders] = useState<string[]>([]);
+  const [csvSampleData, setCSVSampleData] = useState<string[][]>([]);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const cardInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -177,17 +182,77 @@ const Dashboard = () => {
     try {
       toast({
         title: "Processing...",
-        description: "Parsing contact file...",
+        description: "Analyzing contact file...",
       });
 
-      const contacts = await parseContactFile(file);
+      // Check if the file needs manual mapping
+      const needsMapping = await needsManualMapping(file);
+
+      if (needsMapping) {
+        // Show field mapping dialog for CSV files
+        const content = await file.text();
+        const result = getCSVHeaders(content);
+        
+        setCSVHeaders(result.headers);
+        setCSVSampleData(result.data);
+        setPendingFile(file);
+        setIsFieldMappingOpen(true);
+        
+        toast({
+          title: "Manual Mapping Required",
+          description: "Please map your CSV columns to contact fields",
+        });
+      } else {
+        // Auto-parse the file
+        const contacts = await parseContactFile(file);
+        
+        if (contacts.length === 0) {
+          throw new Error('No valid contacts found in file');
+        }
+
+        setParsedContacts(contacts);
+        setIsImportPreviewOpen(true);
+        
+        toast({
+          title: "Success!",
+          description: `Found ${contacts.length} contact${contacts.length > 1 ? 's' : ''} in file`,
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Error parsing contact file:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to parse contact file",
+        variant: "destructive",
+      });
+      setImportFile(null);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleMappingComplete = async (mapping: FieldMapping) => {
+    if (!pendingFile) return;
+
+    setIsFieldMappingOpen(false);
+    setIsProcessing(true);
+
+    try {
+      toast({
+        title: "Processing...",
+        description: "Parsing contacts with your mapping...",
+      });
+
+      const contacts = await parseContactFile(pendingFile, mapping);
       
       if (contacts.length === 0) {
-        throw new Error('No valid contacts found in file');
+        throw new Error('No valid contacts found with the selected mapping');
       }
 
       setParsedContacts(contacts);
       setIsImportPreviewOpen(true);
+      setPendingFile(null);
       
       toast({
         title: "Success!",
@@ -195,10 +260,10 @@ const Dashboard = () => {
       });
 
     } catch (error: any) {
-      console.error('Error parsing contact file:', error);
+      console.error('Error parsing with mapping:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to parse contact file",
+        description: error.message || "Failed to parse contacts",
         variant: "destructive",
       });
       setImportFile(null);
@@ -463,6 +528,22 @@ const Dashboard = () => {
         }}
         contacts={parsedContacts}
         onImportComplete={fetchContacts}
+      />
+
+      <FieldMappingDialog
+        open={isFieldMappingOpen}
+        onOpenChange={(open) => {
+          setIsFieldMappingOpen(open);
+          if (!open) {
+            setImportFile(null);
+            setPendingFile(null);
+            setCSVHeaders([]);
+            setCSVSampleData([]);
+          }
+        }}
+        csvHeaders={csvHeaders}
+        sampleData={csvSampleData}
+        onMappingComplete={handleMappingComplete}
       />
     </div>
   );

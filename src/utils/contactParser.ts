@@ -7,6 +7,89 @@ export interface ParsedContact {
   notes?: string;
 }
 
+export interface CSVParseResult {
+  headers: string[];
+  data: string[][];
+}
+
+// Get CSV headers and sample data
+export const getCSVHeaders = (content: string): CSVParseResult => {
+  const lines = content.split('\n').filter(line => line.trim());
+  if (lines.length === 0) {
+    return { headers: [], data: [] };
+  }
+
+  const headers = parseCSVLine(lines[0]).map(h => h.trim());
+  const data: string[][] = [];
+
+  // Get up to 5 sample rows
+  for (let i = 1; i < Math.min(lines.length, 6); i++) {
+    const values = parseCSVLine(lines[i]);
+    if (values.length > 0) {
+      data.push(values);
+    }
+  }
+
+  return { headers, data };
+};
+
+// Parse CSV with custom field mapping
+export const parseCSVWithMapping = (
+  content: string, 
+  mapping: { [csvColumn: string]: string }
+): ParsedContact[] => {
+  const lines = content.split('\n').filter(line => line.trim());
+  if (lines.length === 0) return [];
+
+  const headers = parseCSVLine(lines[0]).map(h => h.trim());
+  const contacts: ParsedContact[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    if (values.length === 0) continue;
+
+    const contact: ParsedContact = {
+      name: '',
+    };
+
+    headers.forEach((header, index) => {
+      const value = values[index]?.trim();
+      if (!value) return;
+
+      const targetField = mapping[header];
+      if (!targetField || targetField === 'ignore') return;
+
+      switch (targetField) {
+        case 'name':
+          contact.name = contact.name ? `${contact.name} ${value}` : value;
+          break;
+        case 'email':
+          contact.email = value;
+          break;
+        case 'phone':
+          contact.phone = value;
+          break;
+        case 'company':
+          contact.company = value;
+          break;
+        case 'title':
+          contact.title = value;
+          break;
+        case 'notes':
+          contact.notes = value;
+          break;
+      }
+    });
+
+    // Only add contacts with at least a name
+    if (contact.name) {
+      contacts.push(contact);
+    }
+  }
+
+  return contacts;
+};
+
 // Parse CSV file
 export const parseCSV = (content: string): ParsedContact[] => {
   const lines = content.split('\n').filter(line => line.trim());
@@ -143,15 +226,48 @@ export const parseVCF = (content: string): ParsedContact[] => {
 };
 
 // Auto-detect file format and parse
-export const parseContactFile = async (file: File): Promise<ParsedContact[]> => {
+export const parseContactFile = async (
+  file: File, 
+  customMapping?: { [csvColumn: string]: string }
+): Promise<ParsedContact[]> => {
   const content = await file.text();
   const fileName = file.name.toLowerCase();
 
   if (fileName.endsWith('.vcf') || content.includes('BEGIN:VCARD')) {
     return parseVCF(content);
   } else if (fileName.endsWith('.csv')) {
+    if (customMapping) {
+      return parseCSVWithMapping(content, customMapping);
+    }
     return parseCSV(content);
   } else {
     throw new Error('Unsupported file format. Please upload a CSV or VCF file.');
   }
+};
+
+// Check if file needs manual mapping (returns true if auto-detection is uncertain)
+export const needsManualMapping = async (file: File): Promise<boolean> => {
+  const content = await file.text();
+  const fileName = file.name.toLowerCase();
+
+  // VCF files don't need manual mapping
+  if (fileName.endsWith('.vcf') || content.includes('BEGIN:VCARD')) {
+    return false;
+  }
+
+  // Check if CSV has clear headers
+  if (fileName.endsWith('.csv')) {
+    const result = getCSVHeaders(content);
+    if (result.headers.length === 0) return true;
+
+    // Check if we can auto-detect a name field
+    const hasNameField = result.headers.some(header => {
+      const lower = header.toLowerCase();
+      return lower.includes('name') || lower.includes('full');
+    });
+
+    return !hasNameField;
+  }
+
+  return false;
 };
