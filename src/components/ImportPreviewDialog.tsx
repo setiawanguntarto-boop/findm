@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,8 +12,18 @@ import { ParsedContact } from "@/utils/contactParser";
 import { validateContacts, ValidatedContact, getValidationSummary } from "@/utils/contactValidator";
 import { contactSchema } from "@/utils/contactSchema";
 import { z } from "zod";
-import { CheckCircle2, XCircle, Mail, Phone, Building, Briefcase, AlertTriangle, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Mail, Phone, Building, Briefcase, AlertTriangle, AlertCircle, Trash2, Tag, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -29,7 +40,9 @@ interface ImportPreviewDialogProps {
 
 const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }: ImportPreviewDialogProps) => {
   // Validate all contacts
-  const validatedContacts = validateContacts(contacts);
+  const [contactList, setContactList] = useState<ParsedContact[]>(contacts);
+  const [contactTags, setContactTags] = useState<Map<number, string[]>>(new Map());
+  const validatedContacts = validateContacts(contactList);
   const validationSummary = getValidationSummary(validatedContacts);
 
   const [selectedContacts, setSelectedContacts] = useState<Set<number>>(() => {
@@ -42,6 +55,9 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
   });
   const [importing, setImporting] = useState(false);
   const [showInvalidOnly, setShowInvalidOnly] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showTagDialog, setShowTagDialog] = useState(false);
+  const [newTag, setNewTag] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -73,6 +89,46 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
     );
   };
 
+  const handleBulkDelete = () => {
+    const indicesToDelete = Array.from(selectedContacts);
+    const newContactList = contactList.filter((_, index) => !indicesToDelete.includes(index));
+    
+    setContactList(newContactList);
+    setSelectedContacts(new Set());
+    setShowDeleteDialog(false);
+    
+    toast({
+      title: "Removed",
+      description: `Removed ${indicesToDelete.length} contact${indicesToDelete.length !== 1 ? 's' : ''} from import list`,
+    });
+
+    // If no contacts left, close the dialog
+    if (newContactList.length === 0) {
+      onOpenChange(false);
+    }
+  };
+
+  const handleBulkTag = () => {
+    if (!newTag.trim()) return;
+
+    const newTagsMap = new Map(contactTags);
+    selectedContacts.forEach(index => {
+      const existingTags = newTagsMap.get(index) || [];
+      if (!existingTags.includes(newTag.trim())) {
+        newTagsMap.set(index, [...existingTags, newTag.trim()]);
+      }
+    });
+
+    setContactTags(newTagsMap);
+    setNewTag("");
+    setShowTagDialog(false);
+    
+    toast({
+      title: "Tag Added",
+      description: `Added tag "${newTag.trim()}" to ${selectedContacts.size} contact${selectedContacts.size !== 1 ? 's' : ''}`,
+    });
+  };
+
   const handleImport = async () => {
     if (!user || selectedContacts.size === 0) return;
 
@@ -81,7 +137,11 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
       // Validate and prepare contacts for import
       const contactsToImport = validatedContacts
         .filter((_, index) => selectedContacts.has(index))
-        .map(contact => {
+        .map((contact, arrayIndex) => {
+          // Find the original index in validatedContacts
+          const originalIndex = validatedContacts.indexOf(contact);
+          const tags = contactTags.get(originalIndex) || null;
+          
           // Validate each contact before import
           const validatedData = contactSchema.parse({
             name: contact.name,
@@ -92,7 +152,7 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
             context_notes: contact.notes || null,
             meeting_location: null,
             meeting_date: null,
-            tags: null,
+            tags: tags,
           });
 
           return {
@@ -150,6 +210,46 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
             Review and select contacts to import. {validationSummary.total} contact{validationSummary.total > 1 ? 's' : ''} found.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Bulk Actions Toolbar */}
+        {selectedContacts.size > 0 && (
+          <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="font-medium text-sm text-foreground">
+                {selectedContacts.size} selected
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedContacts(new Set())}
+                className="h-7"
+              >
+                <X className="w-3 h-3 mr-1" />
+                Clear
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTagDialog(true)}
+                className="h-7"
+              >
+                <Tag className="w-3 h-3 mr-1" />
+                Add Tag
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+                className="h-7"
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                Remove
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Validation Summary */}
         {validationSummary.invalid > 0 && (
@@ -312,10 +412,23 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
                             </div>
                           )}
                         </div>
-                        {contact.notes && (
+                         {contact.notes && (
                           <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
                             {contact.notes}
                           </p>
+                        )}
+                        {/* Show tags if any */}
+                        {contactTags.get(originalIndex) && contactTags.get(originalIndex)!.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {contactTags.get(originalIndex)!.map((tag, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
                         )}
                         {/* Show validation issues */}
                         {validation.issues.length > 0 && (
@@ -352,6 +465,61 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
           </Button>
         </div>
       </DialogContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {selectedContacts.size} contact{selectedContacts.size !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the selected contact{selectedContacts.size !== 1 ? 's' : ''} from the import list. They will not be imported.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add Tag Dialog */}
+      <AlertDialog open={showTagDialog} onOpenChange={setShowTagDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add Tag to {selectedContacts.size} contact{selectedContacts.size !== 1 ? 's' : ''}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter a tag to add to the selected contacts. The tag will be applied when you import these contacts.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Enter tag name..."
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleBulkTag();
+                }
+              }}
+              autoFocus
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setNewTag("")}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkTag}
+              disabled={!newTag.trim()}
+            >
+              Add Tag
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
