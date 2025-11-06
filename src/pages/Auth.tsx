@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import logoFull from "@/assets/logo-full.png";
+import logoFull from "@/assets/logo-new.png";
 import PageTransition from "@/components/PageTransition";
 
 const emailSchema = z.string().email("Invalid email address");

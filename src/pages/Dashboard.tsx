@@ -10,7 +10,7 @@ import ContactDetailDialog from "@/components/ContactDetailDialog";
 import ImportPreviewDialog from "@/components/ImportPreviewDialog";
 import FieldMappingDialog, { FieldMapping } from "@/components/FieldMappingDialog";
 import { useToast } from "@/hooks/use-toast";
-import logoFull from "@/assets/logo-full.png";
+import logoFull from "@/assets/logo-new.png";
 import { useNavigate, Link } from "react-router-dom";
 import { parseContactFile, ParsedContact, needsManualMapping, getCSVHeaders } from "@/utils/contactParser";
 
