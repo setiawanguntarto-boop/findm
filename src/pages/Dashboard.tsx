@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, LogOut, User as UserIcon } from "lucide-react";
+import { Search, Plus, LogOut, User as UserIcon, Camera, Upload, CheckCircle2 } from "lucide-react";
 import ContactCard from "@/components/ContactCard";
 import AddContactDialog from "@/components/AddContactDialog";
 import ContactDetailDialog from "@/components/ContactDetailDialog";
@@ -36,6 +36,10 @@ const Dashboard = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cardFile, setCardFile] = useState<File | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const cardInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -95,6 +99,28 @@ const Dashboard = () => {
     navigate("/");
   };
 
+  const handleCardUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCardFile(file);
+      toast({
+        title: "Business card uploaded",
+        description: `${file.name} - OCR scanning coming soon!`,
+      });
+    }
+  };
+
+  const handleImportUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImportFile(file);
+      toast({
+        title: "Contact file uploaded",
+        description: `${file.name} - Import functionality coming soon!`,
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card sticky top-0 z-10">
@@ -116,81 +142,195 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2">Your Contacts</h1>
-          <p className="text-lg text-muted-foreground">
-            {contacts.length} {contacts.length === 1 ? "contact" : "contacts"} saved
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Page Header */}
+        <header className="mb-12">
+          <h1 className="text-4xl font-extrabold text-foreground mb-4">
+            Contact Dashboard
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-3xl">
+            Add contacts to your find.me account. Choose one of the tools below to get started, or{" "}
+            <a href="#contact-list" className="font-medium text-foreground hover:underline">
+              go to your contacts list
+            </a>.
           </p>
+        </header>
+
+        {/* Dashboard Tools Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
+          {/* Tool 1: Scan Name Card */}
+          <div className="bg-card rounded-xl shadow-md border border-border p-8">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mr-4">
+                <Camera className="w-6 h-6 text-foreground" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground">Scan Name Card</h2>
+            </div>
+            <p className="text-muted-foreground mb-6">
+              Use our AI-powered scanner to instantly digitize your physical business cards. Just upload a photo.
+            </p>
+
+            <div className="w-full">
+              <label
+                htmlFor="name-card-upload"
+                className="flex flex-col items-center justify-center w-full h-48 p-6 border-2 border-dashed border-border rounded-lg text-center cursor-pointer hover:border-foreground transition-colors"
+              >
+                {cardFile ? (
+                  <>
+                    <CheckCircle2 className="w-12 h-12 text-primary mb-2" />
+                    <p className="text-lg font-medium text-foreground">{cardFile.name}</p>
+                    <p className="text-sm text-muted-foreground mt-2">Click to change file</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-12 h-12 text-muted-foreground mb-2" />
+                    <p className="text-lg font-medium text-foreground">Drag & drop a file here</p>
+                    <p className="text-muted-foreground">
+                      or <span className="font-medium text-foreground">click to upload</span>
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">PNG or JPG. Max 5MB.</p>
+                  </>
+                )}
+              </label>
+              <input
+                ref={cardInputRef}
+                type="file"
+                className="hidden"
+                id="name-card-upload"
+                accept="image/png, image/jpeg"
+                onChange={handleCardUpload}
+              />
+            </div>
+          </div>
+
+          {/* Tool 2: Import from File */}
+          <div className="bg-card rounded-xl shadow-md border border-border p-8">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mr-4">
+                <Upload className="w-6 h-6 text-foreground" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground">Import from File</h2>
+            </div>
+            <p className="text-muted-foreground mb-6">
+              Upload an exported contact file from Google, Outlook, or your phone. We support .vcf and .csv files.
+            </p>
+
+            <div className="w-full">
+              <label
+                htmlFor="contact-file-upload"
+                className="flex flex-col items-center justify-center w-full h-48 p-6 border-2 border-dashed border-border rounded-lg text-center cursor-pointer hover:border-foreground transition-colors"
+              >
+                {importFile ? (
+                  <>
+                    <CheckCircle2 className="w-12 h-12 text-primary mb-2" />
+                    <p className="text-lg font-medium text-foreground">{importFile.name}</p>
+                    <p className="text-sm text-muted-foreground mt-2">Click to change file</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-12 h-12 text-muted-foreground mb-2" />
+                    <p className="text-lg font-medium text-foreground">Drag & drop a file here</p>
+                    <p className="text-muted-foreground">
+                      or <span className="font-medium text-foreground">click to upload</span>
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">VCF or CSV. Max 10MB.</p>
+                  </>
+                )}
+              </label>
+              <input
+                ref={importInputRef}
+                type="file"
+                className="hidden"
+                id="contact-file-upload"
+                accept=".vcf, .csv, text/vcard, text/csv"
+                onChange={handleImportUpload}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        {/* Contact List Section */}
+        <section id="contact-list" className="pt-12 border-t border-border">
+          <header className="mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div>
+                <h2 className="text-3xl font-extrabold text-foreground mb-2">Your Contacts</h2>
+                <p className="text-lg text-muted-foreground">
+                  {contacts.length} {contacts.length === 1 ? "contact" : "contacts"} in your database
+                </p>
+              </div>
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Contact
+              </Button>
+            </div>
+          </header>
+
+          {/* Search Bar */}
+          <div className="relative mb-6">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
               placeholder="Search contacts by name, company, or context..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-12 h-12"
             />
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Contact
-          </Button>
-        </div>
 
-        {allTags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-8">
-            <Button
-              variant={selectedTag === null ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedTag(null)}
-            >
-              All
-            </Button>
-            {allTags.map((tag) => (
+          {/* Tag Filters */}
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-8">
               <Button
-                key={tag}
-                variant={selectedTag === tag ? "default" : "outline"}
+                variant={selectedTag === null ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedTag(tag)}
+                onClick={() => setSelectedTag(null)}
               >
-                {tag}
+                All
               </Button>
-            ))}
-          </div>
-        )}
+              {allTags.map((tag) => (
+                <Button
+                  key={tag}
+                  variant={selectedTag === tag ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedTag(tag)}
+                >
+                  {tag}
+                </Button>
+              ))}
+            </div>
+          )}
 
-        {loading ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Loading contacts...</p>
-          </div>
-        ) : filteredContacts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">
-              {searchQuery || selectedTag
-                ? "No contacts match your search"
-                : "No contacts yet. Add your first contact to get started!"}
-            </p>
-            {!searchQuery && !selectedTag && (
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Your First Contact
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredContacts.map((contact) => (
-              <ContactCard
-                key={contact.id}
-                contact={contact}
-                onClick={() => setSelectedContact(contact)}
-              />
-            ))}
-          </div>
-        )}
+          {/* Contact List */}
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Loading contacts...</p>
+            </div>
+          ) : filteredContacts.length === 0 ? (
+            <div className="bg-card rounded-xl shadow-md border border-border p-12 text-center">
+              <p className="text-muted-foreground mb-4">
+                {searchQuery || selectedTag
+                  ? "No contacts match your search"
+                  : "No contacts yet. Add your first contact to get started!"}
+              </p>
+              {!searchQuery && !selectedTag && (
+                <Button onClick={() => setIsAddDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Your First Contact
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredContacts.map((contact) => (
+                <ContactCard
+                  key={contact.id}
+                  contact={contact}
+                  onClick={() => setSelectedContact(contact)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       </main>
 
       <AddContactDialog
