@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { contactSchema } from "@/utils/contactSchema";
+import { z } from "zod";
 
 interface AddContactDialogProps {
   open: boolean;
@@ -62,17 +64,30 @@ const AddContactDialog = ({ open, onOpenChange, onContactAdded, initialData }: A
         .map((tag) => tag.trim())
         .filter((tag) => tag);
 
-      const { error } = await supabase.from("contacts").insert({
-        user_id: user.id,
+      // Validate input before database operation
+      const validatedData = contactSchema.parse({
         name: formData.name,
         email: formData.email || null,
         phone: formData.phone || null,
         company: formData.company || null,
         title: formData.title || null,
-        tags: tagsArray.length > 0 ? tagsArray : null,
         context_notes: formData.context_notes || null,
         meeting_location: formData.meeting_location || null,
         meeting_date: formData.meeting_date || null,
+        tags: tagsArray.length > 0 ? tagsArray : null,
+      });
+
+      const { error } = await supabase.from("contacts").insert({
+        user_id: user.id,
+        name: validatedData.name,
+        email: validatedData.email,
+        phone: validatedData.phone,
+        company: validatedData.company,
+        title: validatedData.title,
+        tags: validatedData.tags,
+        context_notes: validatedData.context_notes,
+        meeting_location: validatedData.meeting_location,
+        meeting_date: validatedData.meeting_date,
         source: "manual",
       });
 
@@ -97,9 +112,13 @@ const AddContactDialog = ({ open, onOpenChange, onContactAdded, initialData }: A
       onContactAdded();
       onOpenChange(false);
     } catch (error: any) {
+      let errorMessage = error.message;
+      if (error instanceof z.ZodError) {
+        errorMessage = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(", ");
+      }
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Validation Error",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

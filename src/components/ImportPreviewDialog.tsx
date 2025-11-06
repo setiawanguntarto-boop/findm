@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { ParsedContact } from "@/utils/contactParser";
 import { validateContacts, ValidatedContact, getValidationSummary } from "@/utils/contactValidator";
+import { contactSchema } from "@/utils/contactSchema";
+import { z } from "zod";
 import { CheckCircle2, XCircle, Mail, Phone, Building, Briefcase, AlertTriangle, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -76,18 +78,37 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
 
     setImporting(true);
     try {
+      // Validate and prepare contacts for import
       const contactsToImport = validatedContacts
         .filter((_, index) => selectedContacts.has(index))
-        .map(contact => ({
-          user_id: user.id,
-          name: contact.name.trim(),
-          email: contact.email?.trim() || null,
-          phone: contact.phone?.trim() || null,
-          company: contact.company?.trim() || null,
-          title: contact.title?.trim() || null,
-          context_notes: contact.notes?.trim() || null,
-          source: "import",
-        }));
+        .map(contact => {
+          // Validate each contact before import
+          const validatedData = contactSchema.parse({
+            name: contact.name,
+            email: contact.email || null,
+            phone: contact.phone || null,
+            company: contact.company || null,
+            title: contact.title || null,
+            context_notes: contact.notes || null,
+            meeting_location: null,
+            meeting_date: null,
+            tags: null,
+          });
+
+          return {
+            user_id: user.id,
+            name: validatedData.name,
+            email: validatedData.email,
+            phone: validatedData.phone,
+            company: validatedData.company,
+            title: validatedData.title,
+            tags: validatedData.tags,
+            context_notes: validatedData.context_notes,
+            meeting_location: validatedData.meeting_location,
+            meeting_date: validatedData.meeting_date,
+            source: "import",
+          };
+        });
 
       const { error } = await supabase.from("contacts").insert(contactsToImport);
 
@@ -102,9 +123,13 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
       onOpenChange(false);
     } catch (error: any) {
       console.error('Import error:', error);
+      let errorMessage = error.message || "Failed to import contacts";
+      if (error instanceof z.ZodError) {
+        errorMessage = "Validation failed: " + error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(", ");
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to import contacts",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
