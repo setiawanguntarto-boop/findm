@@ -138,10 +138,10 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('OpenAI response received:', JSON.stringify(data));
+    console.log('OpenAI response received successfully');
 
     const extractedText = data.choices[0].message.content.trim();
-    console.log('Extracted text:', extractedText);
+    console.log('Contact data extraction completed');
 
     // Parse the JSON response
     let contactInfo;
@@ -150,11 +150,13 @@ serve(async (req) => {
       const jsonText = extractedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       contactInfo = JSON.parse(jsonText);
     } catch (parseError) {
-      console.error('Failed to parse JSON:', parseError, 'Raw text:', extractedText);
-      throw new Error('Failed to parse contact information from AI response');
+      // Log detailed error for debugging but throw generic message
+      console.error('JSON parsing failed for user', user.id, '- Error:', parseError);
+      console.error('Extracted text sample:', extractedText.substring(0, 200));
+      throw new Error('Unable to extract contact information from the business card');
     }
 
-    console.log(`Successfully extracted contact info for user ${user.id}:`, contactInfo);
+    console.log(`Successfully extracted contact info for user ${user.id}`);
 
     return new Response(
       JSON.stringify({ 
@@ -166,16 +168,31 @@ serve(async (req) => {
       }
     );
   } catch (error) {
+    // Log detailed error for server-side debugging
     console.error('Error in extract-business-card function:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     
-    // Return appropriate status code based on error type
-    const statusCode = errorMessage.includes('Unauthorized') ? 401 : 500;
+    // Sanitize error message for client response
+    let clientMessage = 'An error occurred while processing your request. Please try again.';
+    let statusCode = 500;
+    
+    if (error instanceof Error) {
+      // Log the actual error message for debugging
+      console.error('Detailed error:', error.message);
+      
+      // Only send specific user-friendly messages, never raw error details
+      if (error.message.includes('Unauthorized')) {
+        clientMessage = 'Authentication required. Please log in again.';
+        statusCode = 401;
+      } else if (error.message.includes('extract contact information')) {
+        clientMessage = 'Unable to read the business card. Please ensure the image is clear and try again.';
+        statusCode = 400;
+      }
+    }
     
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: errorMessage 
+        error: clientMessage 
       }),
       {
         status: statusCode,
