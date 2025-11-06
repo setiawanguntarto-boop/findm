@@ -9,6 +9,8 @@ import AddContactDialog from "@/components/AddContactDialog";
 import ContactDetailDialog from "@/components/ContactDetailDialog";
 import ImportPreviewDialog from "@/components/ImportPreviewDialog";
 import FieldMappingDialog, { FieldMapping } from "@/components/FieldMappingDialog";
+import { BulkActionsToolbar } from "@/components/BulkActionsToolbar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import logoFull from "@/assets/logo-new.png";
 import { useNavigate, Link } from "react-router-dom";
@@ -58,6 +60,7 @@ const Dashboard = () => {
   const [csvHeaders, setCSVHeaders] = useState<string[]>([]);
   const [csvSampleData, setCSVSampleData] = useState<string[][]>([]);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const cardInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -281,6 +284,98 @@ const Dashboard = () => {
     }
   };
 
+  // Bulk action handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedContactIds(new Set(filteredContacts.map(c => c.id)));
+    } else {
+      setSelectedContactIds(new Set());
+    }
+  };
+
+  const handleSelectContact = (contactId: string, checked: boolean) => {
+    const newSelected = new Set(selectedContactIds);
+    if (checked) {
+      newSelected.add(contactId);
+    } else {
+      newSelected.delete(contactId);
+    }
+    setSelectedContactIds(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      const idsToDelete = Array.from(selectedContactIds);
+      const { error } = await supabase
+        .from("contacts")
+        .delete()
+        .in("id", idsToDelete);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success!",
+        description: `Deleted ${idsToDelete.length} contact${idsToDelete.length !== 1 ? 's' : ''}`,
+      });
+
+      setSelectedContactIds(new Set());
+      fetchContacts();
+    } catch (error: any) {
+      console.error('Error deleting contacts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete contacts",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkTag = async (tag: string) => {
+    try {
+      const idsToTag = Array.from(selectedContactIds);
+      
+      // Fetch current contacts to merge tags
+      const { data: currentContacts, error: fetchError } = await supabase
+        .from("contacts")
+        .select("id, tags")
+        .in("id", idsToTag);
+
+      if (fetchError) throw fetchError;
+
+      // Update each contact with the new tag (avoiding duplicates)
+      const updates = currentContacts?.map(contact => {
+        const currentTags = contact.tags || [];
+        const newTags = currentTags.includes(tag) 
+          ? currentTags 
+          : [...currentTags, tag];
+        
+        return supabase
+          .from("contacts")
+          .update({ tags: newTags })
+          .eq("id", contact.id);
+      });
+
+      if (updates) {
+        await Promise.all(updates);
+      }
+
+      toast({
+        title: "Success!",
+        description: `Added tag "${tag}" to ${idsToTag.length} contact${idsToTag.length !== 1 ? 's' : ''}`,
+      });
+
+      setSelectedContactIds(new Set());
+      fetchContacts();
+    } catch (error: any) {
+      console.error('Error adding tag:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add tag",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card sticky top-0 z-10">
@@ -492,70 +587,106 @@ const Dashboard = () => {
               )}
             </div>
           ) : (
-            <div className="bg-card rounded-xl shadow-md border border-border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Meeting Date</TableHead>
-                    <TableHead>Tags</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredContacts.map((contact) => (
-                    <TableRow
-                      key={contact.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => setSelectedContact(contact)}
-                    >
-                      <TableCell className="font-medium">{contact.name}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {contact.email || "-"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {contact.phone || "-"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {contact.company || "-"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {contact.title || "-"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {contact.meeting_date
-                          ? format(new Date(contact.meeting_date), "MMM d, yyyy")
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {contact.tags && contact.tags.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {contact.tags.slice(0, 2).map((tag, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                            {contact.tags.length > 2 && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-                                +{contact.tags.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
+            <>
+              {selectedContactIds.size > 0 && (
+                <BulkActionsToolbar
+                  selectedCount={selectedContactIds.size}
+                  onClearSelection={() => setSelectedContactIds(new Set())}
+                  onBulkDelete={handleBulkDelete}
+                  onBulkTag={handleBulkTag}
+                />
+              )}
+              
+              <div className="bg-card rounded-xl shadow-md border border-border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={
+                            filteredContacts.length > 0 &&
+                            selectedContactIds.size === filteredContacts.length
+                          }
+                          onCheckedChange={handleSelectAll}
+                          aria-label="Select all contacts"
+                        />
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Meeting Date</TableHead>
+                      <TableHead>Tags</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredContacts.map((contact) => (
+                      <TableRow
+                        key={contact.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={(e) => {
+                          // Don't open detail dialog if clicking checkbox
+                          if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
+                            return;
+                          }
+                          setSelectedContact(contact);
+                        }}
+                      >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedContactIds.has(contact.id)}
+                            onCheckedChange={(checked) =>
+                              handleSelectContact(contact.id, checked as boolean)
+                            }
+                            aria-label={`Select ${contact.name}`}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">{contact.name}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {contact.email || "-"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {contact.phone || "-"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {contact.company || "-"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {contact.title || "-"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {contact.meeting_date
+                            ? format(new Date(contact.meeting_date), "MMM d, yyyy")
+                            : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {contact.tags && contact.tags.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {contact.tags.slice(0, 2).map((tag, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {contact.tags.length > 2 && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                                  +{contact.tags.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </section>
       </main>
