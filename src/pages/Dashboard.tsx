@@ -7,11 +7,13 @@ import { Search, Plus, LogOut, User as UserIcon, Camera, Upload, CheckCircle2 } 
 import ContactCard from "@/components/ContactCard";
 import AddContactDialog from "@/components/AddContactDialog";
 import ContactDetailDialog from "@/components/ContactDetailDialog";
+import ContactConfirmationDialog from "@/components/ContactConfirmationDialog";
 import ImportPreviewDialog from "@/components/ImportPreviewDialog";
 import FieldMappingDialog, { FieldMapping } from "@/components/FieldMappingDialog";
 import { BulkActionsToolbar } from "@/components/BulkActionsToolbar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { contactSchema } from "@/utils/contactSchema";
 import logoFull from "@/assets/logo-new.png";
 import { useNavigate, Link } from "react-router-dom";
 import { parseContactFile, ParsedContact, needsManualMapping, getCSVHeaders } from "@/utils/contactParser";
@@ -61,6 +63,7 @@ const Dashboard = () => {
   const [csvSampleData, setCSVSampleData] = useState<string[][]>([]);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
   const cardInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -159,7 +162,7 @@ const Dashboard = () => {
         console.log('Extracted contact info:', data.contactInfo);
         
         setExtractedData(data.contactInfo);
-        setIsAddDialogOpen(true);
+        setIsConfirmationOpen(true);
         
         toast({
           title: "Success!",
@@ -242,6 +245,62 @@ const Dashboard = () => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleConfirmContact = async () => {
+    if (!user || !extractedData) return;
+
+    try {
+      // Validate the contact data
+      const validatedData = contactSchema.parse({
+        name: extractedData.name,
+        email: extractedData.email || null,
+        phone: extractedData.phone || null,
+        company: extractedData.company || null,
+        title: extractedData.title || null,
+        context_notes: extractedData.context_notes || null,
+        meeting_location: extractedData.meeting_location || null,
+        meeting_date: extractedData.meeting_date || null,
+        tags: extractedData.tags || null,
+      });
+
+      const { error } = await supabase.from("contacts").insert({
+        user_id: user.id,
+        name: validatedData.name,
+        email: validatedData.email,
+        phone: validatedData.phone,
+        company: validatedData.company,
+        title: validatedData.title,
+        tags: validatedData.tags,
+        context_notes: validatedData.context_notes,
+        meeting_location: validatedData.meeting_location,
+        meeting_date: validatedData.meeting_date,
+        source: "business_card",
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success!",
+        description: "Contact added successfully",
+      });
+
+      setExtractedData(null);
+      setCardFile(null);
+      fetchContacts();
+    } catch (error: any) {
+      console.error('Error saving contact:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save contact",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditConfirmation = () => {
+    setIsConfirmationOpen(false);
+    setIsAddDialogOpen(true);
   };
 
   const handleMappingComplete = async (mapping: FieldMapping) => {
@@ -690,6 +749,22 @@ const Dashboard = () => {
           )}
         </section>
       </main>
+
+      <ContactConfirmationDialog
+        open={isConfirmationOpen}
+        onOpenChange={(open) => {
+          setIsConfirmationOpen(open);
+          if (!open) {
+            setExtractedData(null);
+            setCardFile(null);
+          }
+        }}
+        contactData={extractedData || { name: "" }}
+        onConfirm={handleConfirmContact}
+        onEdit={handleEditConfirmation}
+        title="Confirm Business Card Scan"
+        description="Review the information extracted from the business card before adding to your contacts."
+      />
 
       <AddContactDialog
         open={isAddDialogOpen}
