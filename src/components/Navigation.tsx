@@ -12,7 +12,7 @@ const Navigation = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
         <div className="flex justify-between items-center h-full">
           <Link to="/" className="flex items-center space-x-2 flex-shrink-0" aria-label="Find.me Homepage">
-            <img src={logoFull} alt="find.me" className="h-6" />
+            <img src={logoFull} alt="find.me" className="h-12" />
           </Link>
 
           <nav className="hidden md:flex items-center space-x-8">
