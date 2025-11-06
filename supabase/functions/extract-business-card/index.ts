@@ -26,6 +26,25 @@ serve(async (req) => {
       );
     }
 
+    // Validate image size (5MB = ~6.7MB base64)
+    const maxSize = 7 * 1024 * 1024; // 7MB base64 ≈ 5MB image
+    if (imageBase64.length > maxSize) {
+      console.error('Image too large:', imageBase64.length);
+      return new Response(
+        JSON.stringify({ error: 'Image too large. Maximum size is 5MB' }),
+        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate base64 format
+    if (!imageBase64.match(/^data:image\/(jpeg|jpg|png);base64,/)) {
+      console.error('Invalid image format');
+      return new Response(
+        JSON.stringify({ error: 'Invalid image format. Only JPEG and PNG are supported' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log('Calling OpenAI Vision API...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -78,8 +97,17 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      console.error('OpenAI API error:', response.status, errorText);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Failed to process image. Please try again.' 
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const data = await response.json();
