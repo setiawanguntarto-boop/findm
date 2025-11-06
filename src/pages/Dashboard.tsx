@@ -7,9 +7,11 @@ import { Search, Plus, LogOut, User as UserIcon, Camera, Upload, CheckCircle2 } 
 import ContactCard from "@/components/ContactCard";
 import AddContactDialog from "@/components/AddContactDialog";
 import ContactDetailDialog from "@/components/ContactDetailDialog";
+import ImportPreviewDialog from "@/components/ImportPreviewDialog";
 import { useToast } from "@/hooks/use-toast";
 import logoFull from "@/assets/logo-full.png";
 import { useNavigate, Link } from "react-router-dom";
+import { parseContactFile, ParsedContact } from "@/utils/contactParser";
 
 export interface Contact {
   id: string;
@@ -39,7 +41,9 @@ const Dashboard = () => {
   const [cardFile, setCardFile] = useState<File | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [extractedData, setExtractedData] = useState<any>(null);
+  const [parsedContacts, setParsedContacts] = useState<ParsedContact[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
   const cardInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -163,14 +167,43 @@ const Dashboard = () => {
     }
   };
 
-  const handleImportUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setImportFile(file);
+    if (!file) return;
+
+    setImportFile(file);
+    setIsProcessing(true);
+
+    try {
       toast({
-        title: "Contact file uploaded",
-        description: `${file.name} - Import functionality coming soon!`,
+        title: "Processing...",
+        description: "Parsing contact file...",
       });
+
+      const contacts = await parseContactFile(file);
+      
+      if (contacts.length === 0) {
+        throw new Error('No valid contacts found in file');
+      }
+
+      setParsedContacts(contacts);
+      setIsImportPreviewOpen(true);
+      
+      toast({
+        title: "Success!",
+        description: `Found ${contacts.length} contact${contacts.length > 1 ? 's' : ''} in file`,
+      });
+
+    } catch (error: any) {
+      console.error('Error parsing contact file:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to parse contact file",
+        variant: "destructive",
+      });
+      setImportFile(null);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -279,7 +312,13 @@ const Dashboard = () => {
                 htmlFor="contact-file-upload"
                 className="flex flex-col items-center justify-center w-full h-48 p-6 border-2 border-dashed border-border rounded-lg text-center cursor-pointer hover:border-foreground transition-colors"
               >
-                {importFile ? (
+                {isProcessing ? (
+                  <>
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
+                    <p className="text-lg font-medium text-foreground">Processing...</p>
+                    <p className="text-sm text-muted-foreground mt-2">Parsing contact file</p>
+                  </>
+                ) : importFile ? (
                   <>
                     <CheckCircle2 className="w-12 h-12 text-primary mb-2" />
                     <p className="text-lg font-medium text-foreground">{importFile.name}</p>
@@ -411,6 +450,19 @@ const Dashboard = () => {
         onOpenChange={(open) => !open && setSelectedContact(null)}
         onContactUpdated={fetchContacts}
         onContactDeleted={fetchContacts}
+      />
+
+      <ImportPreviewDialog
+        open={isImportPreviewOpen}
+        onOpenChange={(open) => {
+          setIsImportPreviewOpen(open);
+          if (!open) {
+            setImportFile(null);
+            setParsedContacts([]);
+          }
+        }}
+        contacts={parsedContacts}
+        onImportComplete={fetchContacts}
       />
     </div>
   );
