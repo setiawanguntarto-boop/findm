@@ -13,6 +13,15 @@ import { useToast } from "@/hooks/use-toast";
 import logoFull from "@/assets/logo-new.png";
 import { useNavigate, Link } from "react-router-dom";
 import { parseContactFile, ParsedContact, needsManualMapping, getCSVHeaders } from "@/utils/contactParser";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { format } from "date-fns";
 
 export interface Contact {
   id: string;
@@ -483,14 +492,69 @@ const Dashboard = () => {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredContacts.map((contact) => (
-                <ContactCard
-                  key={contact.id}
-                  contact={contact}
-                  onClick={() => setSelectedContact(contact)}
-                />
-              ))}
+            <div className="bg-card rounded-xl shadow-md border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Meeting Date</TableHead>
+                    <TableHead>Tags</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredContacts.map((contact) => (
+                    <TableRow
+                      key={contact.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedContact(contact)}
+                    >
+                      <TableCell className="font-medium">{contact.name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {contact.email || "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {contact.phone || "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {contact.company || "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {contact.title || "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {contact.meeting_date
+                          ? format(new Date(contact.meeting_date), "MMM d, yyyy")
+                          : "-"}
+                      </TableCell>
+                      <TableCell>
+                        {contact.tags && contact.tags.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {contact.tags.slice(0, 2).map((tag, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {contact.tags.length > 2 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                                +{contact.tags.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </section>
