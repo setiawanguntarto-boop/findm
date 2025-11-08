@@ -57,6 +57,7 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
   const [showInvalidOnly, setShowInvalidOnly] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTagDialog, setShowTagDialog] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [newTag, setNewTag] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
@@ -129,7 +130,11 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
     });
   };
 
-  const handleImport = async () => {
+  const handleProceedToConfirm = () => {
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmImport = async () => {
     if (!user || selectedContacts.size === 0) return;
 
     setImporting(true);
@@ -181,6 +186,7 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
 
       onImportComplete();
       onOpenChange(false);
+      setShowConfirmation(false);
     } catch (error: any) {
       console.error('Import error:', error);
       let errorMessage = error.message || "Failed to import contacts";
@@ -201,18 +207,106 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
     ? validatedContacts.filter(c => !c.validation.isValid)
     : validatedContacts;
 
+  const selectedContactsData = validatedContacts.filter((_, index) => selectedContacts.has(index));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Import Contacts Preview</DialogTitle>
+          <DialogTitle>
+            {showConfirmation ? 'Confirm Import' : 'Import Contacts Preview'}
+          </DialogTitle>
           <DialogDescription>
-            Review and select contacts to import. {validationSummary.total} contact{validationSummary.total > 1 ? 's' : ''} found.
+            {showConfirmation 
+              ? `You are about to import ${selectedContacts.size} contact${selectedContacts.size > 1 ? 's' : ''}. Please review and confirm.`
+              : `Review and select contacts to import. ${validationSummary.total} contact${validationSummary.total > 1 ? 's' : ''} found.`
+            }
           </DialogDescription>
         </DialogHeader>
 
-        {/* Bulk Actions Toolbar */}
-        {selectedContacts.size > 0 && (
+        {/* Confirmation View */}
+        {showConfirmation ? (
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-6">
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>
+                  The following {selectedContactsData.length} contact{selectedContactsData.length > 1 ? 's' : ''} will be added to your contact list.
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-3">
+                {selectedContactsData.map((contact, idx) => {
+                  const originalIndex = validatedContacts.indexOf(contact);
+                  const tags = contactTags.get(originalIndex);
+                  
+                  return (
+                    <div key={idx} className="border rounded-lg p-4 bg-card">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h4 className="font-semibold text-foreground">{contact.name}</h4>
+                          {contact.validation.isValid ? (
+                            <Badge variant="outline" className="mt-1">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Valid
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="mt-1">
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Has Issues
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 text-sm">
+                        {contact.email && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Mail className="w-4 h-4" />
+                            {contact.email}
+                          </div>
+                        )}
+                        {contact.phone && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Phone className="w-4 h-4" />
+                            {contact.phone}
+                          </div>
+                        )}
+                        {contact.company && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Building className="w-4 h-4" />
+                            {contact.company}
+                          </div>
+                        )}
+                        {contact.title && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Briefcase className="w-4 h-4" />
+                            {contact.title}
+                          </div>
+                        )}
+                        {tags && tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {tags.map((tag, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </ScrollArea>
+        ) : (
+          <>
+            {/* Bulk Actions Toolbar */}
+            {selectedContacts.size > 0 && (
           <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="font-medium text-sm text-foreground">
@@ -455,14 +549,36 @@ const ImportPreviewDialog = ({ open, onOpenChange, contacts, onImportComplete }:
             })}
           </div>
         </ScrollArea>
+          </>
+        )}
 
         <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={importing}>
-            Cancel
-          </Button>
-          <Button onClick={handleImport} disabled={importing || selectedContacts.size === 0}>
-            {importing ? "Importing..." : `Import ${selectedContacts.size} Contact${selectedContacts.size > 1 ? 's' : ''}`}
-          </Button>
+          {showConfirmation ? (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowConfirmation(false)} 
+                disabled={importing}
+              >
+                Back
+              </Button>
+              <Button 
+                onClick={handleConfirmImport} 
+                disabled={importing}
+              >
+                {importing ? "Importing..." : `Confirm & Import ${selectedContacts.size} Contact${selectedContacts.size > 1 ? 's' : ''}`}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={importing}>
+                Cancel
+              </Button>
+              <Button onClick={handleProceedToConfirm} disabled={importing || selectedContacts.size === 0}>
+                Review & Confirm
+              </Button>
+            </>
+          )}
         </div>
       </DialogContent>
 
