@@ -127,8 +127,12 @@ const Dashboard = () => {
 
   const handleCardUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
 
+    console.log('📤 Starting business card upload:', file.name, file.size, file.type);
     setCardFile(file);
     setIsProcessing(true);
 
@@ -138,51 +142,73 @@ const Dashboard = () => {
       reader.readAsDataURL(file);
       
       reader.onloadend = async () => {
-        const base64data = reader.result as string;
-        
-        toast({
-          title: "Processing...",
-          description: "Extracting contact information from business card...",
-        });
+        try {
+          const base64data = reader.result as string;
+          console.log('📄 File converted to base64, length:', base64data.length);
+          
+          toast({
+            title: "Processing...",
+            description: "Extracting contact information from business card...",
+          });
 
-        // Call edge function
-        const { data, error } = await supabase.functions.invoke('extract-business-card', {
-          body: { imageBase64: base64data }
-        });
+          console.log('🔄 Calling extract-business-card edge function...');
+          
+          // Call edge function
+          const { data, error } = await supabase.functions.invoke('extract-business-card', {
+            body: { imageBase64: base64data }
+          });
 
-        if (error) {
-          console.error('Error calling edge function:', error);
-          throw error;
+          console.log('📥 Edge function response received');
+          console.log('Response data:', data);
+          console.log('Response error:', error);
+
+          if (error) {
+            console.error('❌ Edge function error:', JSON.stringify(error, null, 2));
+            throw new Error(error.message || 'Failed to call edge function');
+          }
+
+          if (!data) {
+            console.error('❌ No data returned from edge function');
+            throw new Error('No response from server');
+          }
+
+          if (!data.success) {
+            console.error('❌ Edge function returned failure:', data.error);
+            throw new Error(data.error || 'Failed to extract contact information');
+          }
+
+          console.log('✅ Successfully extracted contact info:', JSON.stringify(data.contactInfo, null, 2));
+          
+          setExtractedData(data.contactInfo);
+          console.log('📝 Set extracted data state');
+          
+          setIsConfirmationOpen(true);
+          console.log('🎯 Opened confirmation dialog');
+          
+          toast({
+            title: "Success!",
+            description: "Contact information extracted successfully. Review and confirm below.",
+          });
+        } catch (innerError: any) {
+          console.error('❌ Error in reader.onloadend:', innerError);
+          throw innerError;
         }
-
-        if (!data.success) {
-          throw new Error(data.error || 'Failed to extract contact information');
-        }
-
-        console.log('Extracted contact info:', data.contactInfo);
-        
-        setExtractedData(data.contactInfo);
-        setIsConfirmationOpen(true);
-        
-        toast({
-          title: "Success!",
-          description: "Contact information extracted successfully",
-        });
       };
 
-      reader.onerror = () => {
+      reader.onerror = (readerError) => {
+        console.error('❌ FileReader error:', readerError);
         throw new Error('Failed to read image file');
       };
 
     } catch (error: any) {
-      console.error('Error extracting business card:', error);
+      console.error('❌ Error extracting business card:', error);
+      console.error('Error stack:', error.stack);
       toast({
         title: "Error",
         description: error.message || "Failed to extract contact information",
         variant: "destructive",
       });
       setCardFile(null);
-    } finally {
       setIsProcessing(false);
     }
   };
