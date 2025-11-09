@@ -32,10 +32,13 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    // Extract JWT token from "Bearer <token>"
+    const jwt = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader || '';
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(jwt);
     
     if (authError || !user) {
-      console.error('Authentication failed:', authError?.message);
+      console.error('Authentication failed:', authError?.message || 'No user returned from token');
       return new Response(
         JSON.stringify({ error: 'Unauthorized - Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
