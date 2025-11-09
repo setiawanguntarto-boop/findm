@@ -151,11 +151,24 @@ const Dashboard = () => {
             description: "Extracting contact information from business card...",
           });
 
-          console.log('🔄 Calling extract-business-card edge function...');
+          console.log('🔄 Getting auth session...');
           
-          // Call edge function
+          // Get the current session for authentication
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (!session) {
+            console.error('❌ No active session found');
+            throw new Error('Please log in to use this feature');
+          }
+          
+          console.log('✅ Session found, calling extract-business-card edge function...');
+          
+          // Call edge function with explicit auth header
           const { data, error } = await supabase.functions.invoke('extract-business-card', {
-            body: { imageBase64: base64data }
+            body: { imageBase64: base64data },
+            headers: {
+              Authorization: `Bearer ${session.access_token}`
+            }
           });
 
           console.log('📥 Edge function response received');
