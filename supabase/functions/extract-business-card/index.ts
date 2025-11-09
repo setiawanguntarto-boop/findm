@@ -126,15 +126,35 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
+      const status = response.status;
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
+      let clientErrorMsg = 'Failed to process image. Please try again.';
+
+      try {
+        const parsed = JSON.parse(errorText);
+        const openaiMsg = parsed?.error?.message || parsed?.message;
+        if (openaiMsg) {
+          console.error('OpenAI API error:', status, openaiMsg);
+        } else {
+          console.error('OpenAI API error:', status, errorText);
+        }
+      } catch (_) {
+        console.error('OpenAI API error:', status, errorText);
+      }
+
+      if (status === 429) {
+        clientErrorMsg = 'OpenAI quota exceeded. Please update billing or use a key with credits.';
+      } else if (status === 401 || status === 403) {
+        clientErrorMsg = 'OpenAI API key invalid or unauthorized.';
+      }
+
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: 'Failed to process image. Please try again.' 
+          error: clientErrorMsg
         }),
         {
-          status: 500,
+          status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
