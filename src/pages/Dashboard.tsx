@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, LogOut, User as UserIcon, Camera, Upload, CheckCircle2 } from "lucide-react";
+import { Search, Plus, LogOut, User as UserIcon, Camera, Upload, CheckCircle2, Download } from "lucide-react";
 import ContactCard from "@/components/ContactCard";
 import AddContactDialog from "@/components/AddContactDialog";
 import ContactDetailDialog from "@/components/ContactDetailDialog";
@@ -474,6 +474,88 @@ const Dashboard = () => {
     }
   };
 
+  const handleExportCSV = () => {
+    try {
+      if (contacts.length === 0) {
+        toast({
+          title: "No contacts to export",
+          description: "Add some contacts first before exporting",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // CSV Headers
+      const headers = [
+        "Name",
+        "Email",
+        "Phone",
+        "Company",
+        "Title",
+        "Tags",
+        "Context Notes",
+        "Meeting Location",
+        "Meeting Date",
+        "Source",
+        "Created At"
+      ];
+
+      // Convert contacts to CSV rows
+      const rows = contacts.map(contact => [
+        contact.name || "",
+        contact.email || "",
+        contact.phone || "",
+        contact.company || "",
+        contact.title || "",
+        (contact.tags || []).join("; ") || "",
+        contact.context_notes || "",
+        contact.meeting_location || "",
+        contact.meeting_date ? format(new Date(contact.meeting_date), "yyyy-MM-dd") : "",
+        contact.source || "",
+        format(new Date(contact.created_at), "yyyy-MM-dd HH:mm:ss")
+      ]);
+
+      // Escape CSV values (handle commas, quotes, newlines)
+      const escapeCSV = (value: string) => {
+        if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+
+      // Build CSV content
+      const csvContent = [
+        headers.map(escapeCSV).join(","),
+        ...rows.map(row => row.map(escapeCSV).join(","))
+      ].join("\n");
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute("href", url);
+      link.setAttribute("download", `contacts-backup-${format(new Date(), "yyyy-MM-dd")}.csv`);
+      link.style.visibility = "hidden";
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Export successful!",
+        description: `Exported ${contacts.length} contact${contacts.length !== 1 ? 's' : ''} to CSV`,
+      });
+    } catch (error: any) {
+      console.error('Error exporting contacts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export contacts",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card sticky top-0 z-10">
@@ -624,10 +706,16 @@ const Dashboard = () => {
                   {contacts.length} {contacts.length === 1 ? "contact" : "contacts"} in your database
                 </p>
               </div>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Contact
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleExportCSV} disabled={contacts.length === 0}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                </Button>
+                <Button onClick={() => setIsAddDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Contact
+                </Button>
+              </div>
             </div>
           </header>
 
