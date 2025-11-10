@@ -13,6 +13,13 @@ import FieldMappingDialog, { FieldMapping } from "@/components/FieldMappingDialo
 import { BulkActionsToolbar } from "@/components/BulkActionsToolbar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { contactSchema } from "@/utils/contactSchema";
 import logoFull from "@/assets/logo-new.png";
 import { useNavigate, Link } from "react-router-dom";
@@ -474,15 +481,49 @@ const Dashboard = () => {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = (exportType: 'all' | 'filtered' | 'selected' = 'all') => {
     try {
-      if (contacts.length === 0) {
-        toast({
-          title: "No contacts to export",
-          description: "Add some contacts first before exporting",
-          variant: "destructive",
-        });
-        return;
+      let contactsToExport: Contact[] = [];
+      let fileName = "";
+
+      // Determine which contacts to export
+      switch (exportType) {
+        case 'selected':
+          if (selectedContactIds.size === 0) {
+            toast({
+              title: "No contacts selected",
+              description: "Select contacts to export",
+              variant: "destructive",
+            });
+            return;
+          }
+          contactsToExport = contacts.filter(c => selectedContactIds.has(c.id));
+          fileName = `contacts-selected-${format(new Date(), "yyyy-MM-dd")}.csv`;
+          break;
+        case 'filtered':
+          if (filteredContacts.length === 0) {
+            toast({
+              title: "No contacts to export",
+              description: "No contacts match your current filters",
+              variant: "destructive",
+            });
+            return;
+          }
+          contactsToExport = filteredContacts;
+          fileName = `contacts-filtered-${format(new Date(), "yyyy-MM-dd")}.csv`;
+          break;
+        case 'all':
+        default:
+          if (contacts.length === 0) {
+            toast({
+              title: "No contacts to export",
+              description: "Add some contacts first before exporting",
+              variant: "destructive",
+            });
+            return;
+          }
+          contactsToExport = contacts;
+          fileName = `contacts-all-${format(new Date(), "yyyy-MM-dd")}.csv`;
       }
 
       // CSV Headers
@@ -501,7 +542,7 @@ const Dashboard = () => {
       ];
 
       // Convert contacts to CSV rows
-      const rows = contacts.map(contact => [
+      const rows = contactsToExport.map(contact => [
         contact.name || "",
         contact.email || "",
         contact.phone || "",
@@ -535,7 +576,7 @@ const Dashboard = () => {
       const url = URL.createObjectURL(blob);
       
       link.setAttribute("href", url);
-      link.setAttribute("download", `contacts-backup-${format(new Date(), "yyyy-MM-dd")}.csv`);
+      link.setAttribute("download", fileName);
       link.style.visibility = "hidden";
       
       document.body.appendChild(link);
@@ -544,7 +585,7 @@ const Dashboard = () => {
 
       toast({
         title: "Export successful!",
-        description: `Exported ${contacts.length} contact${contacts.length !== 1 ? 's' : ''} to CSV`,
+        description: `Exported ${contactsToExport.length} contact${contactsToExport.length !== 1 ? 's' : ''} to CSV`,
       });
     } catch (error: any) {
       console.error('Error exporting contacts:', error);
@@ -704,13 +745,36 @@ const Dashboard = () => {
                 <h2 className="text-3xl font-extrabold text-foreground mb-2">Your Contacts</h2>
                 <p className="text-lg text-muted-foreground">
                   {contacts.length} {contacts.length === 1 ? "contact" : "contacts"} in your database
+                  {searchQuery || selectedTag ? ` (${filteredContacts.length} filtered)` : ''}
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleExportCSV} disabled={contacts.length === 0}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export CSV
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" disabled={contacts.length === 0}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export CSV
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleExportCSV('all')}>
+                      Export All Contacts ({contacts.length})
+                    </DropdownMenuItem>
+                    {(searchQuery || selectedTag) && filteredContacts.length > 0 && (
+                      <DropdownMenuItem onClick={() => handleExportCSV('filtered')}>
+                        Export Filtered Contacts ({filteredContacts.length})
+                      </DropdownMenuItem>
+                    )}
+                    {selectedContactIds.size > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleExportCSV('selected')}>
+                          Export Selected ({selectedContactIds.size})
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button onClick={() => setIsAddDialogOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Contact
