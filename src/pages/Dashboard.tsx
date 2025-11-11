@@ -13,6 +13,7 @@ import FieldMappingDialog, { FieldMapping } from "@/components/FieldMappingDialo
 import { BulkActionsToolbar } from "@/components/BulkActionsToolbar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { ContactMergeDialog } from "@/components/ContactMergeDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,6 +72,7 @@ const Dashboard = () => {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const cardInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -481,6 +483,55 @@ const Dashboard = () => {
     }
   };
 
+  const handleMergeContacts = async (mergedContact: Partial<Contact>, contactIdsToDelete: string[]) => {
+    try {
+      if (!user) return;
+
+      const selectedIds = Array.from(selectedContactIds);
+      if (selectedIds.length < 2) {
+        toast({
+          title: "Error",
+          description: "Please select at least 2 contacts to merge",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update the first contact with merged data
+      const primaryContactId = selectedIds[0];
+      const { error: updateError } = await supabase
+        .from("contacts")
+        .update(mergedContact)
+        .eq("id", primaryContactId);
+
+      if (updateError) throw updateError;
+
+      // Delete the other contacts
+      const { error: deleteError } = await supabase
+        .from("contacts")
+        .delete()
+        .in("id", contactIdsToDelete);
+
+      if (deleteError) throw deleteError;
+
+      toast({
+        title: "Success!",
+        description: `Merged ${selectedIds.length} contacts into one`,
+      });
+
+      setIsMergeDialogOpen(false);
+      setSelectedContactIds(new Set());
+      fetchContacts();
+    } catch (error: any) {
+      console.error("Error merging contacts:", error);
+      toast({
+        title: "Error",
+        description: "Failed to merge contacts",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleExportCSV = (exportType: 'all' | 'filtered' | 'selected' = 'all') => {
     try {
       let contactsToExport: Contact[] = [];
@@ -844,6 +895,7 @@ const Dashboard = () => {
                   onClearSelection={() => setSelectedContactIds(new Set())}
                   onBulkDelete={handleBulkDelete}
                   onBulkTag={handleBulkTag}
+                  onMerge={selectedContactIds.size >= 2 ? () => setIsMergeDialogOpen(true) : undefined}
                 />
               )}
               
@@ -1005,6 +1057,13 @@ const Dashboard = () => {
         csvHeaders={csvHeaders}
         sampleData={csvSampleData}
         onMappingComplete={handleMappingComplete}
+      />
+
+      <ContactMergeDialog
+        open={isMergeDialogOpen}
+        onOpenChange={setIsMergeDialogOpen}
+        contacts={contacts.filter((c) => selectedContactIds.has(c.id))}
+        onMerge={handleMergeContacts}
       />
     </div>
   );

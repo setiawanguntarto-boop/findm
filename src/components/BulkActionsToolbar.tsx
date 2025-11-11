@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Tag, X } from "lucide-react";
+import { Trash2, Tag, X, Merge } from "lucide-react";
 import { useState } from "react";
 import {
   AlertDialog,
@@ -18,6 +18,7 @@ interface BulkActionsToolbarProps {
   onClearSelection: () => void;
   onBulkDelete: () => void;
   onBulkTag: (tag: string) => void;
+  onMerge?: () => void;
 }
 
 export const BulkActionsToolbar = ({
@@ -25,6 +26,7 @@ export const BulkActionsToolbar = ({
   onClearSelection,
   onBulkDelete,
   onBulkTag,
+  onMerge,
 }: BulkActionsToolbarProps) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTagDialog, setShowTagDialog] = useState(false);
@@ -66,6 +68,17 @@ export const BulkActionsToolbar = ({
             <Tag className="w-4 h-4 mr-2" />
             Add Tag
           </Button>
+          {onMerge && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onMerge}
+              className="h-8"
+            >
+              <Merge className="w-4 h-4 mr-2" />
+              Merge
+            </Button>
+          )}
           <Button
             variant="destructive"
             size="sm"
