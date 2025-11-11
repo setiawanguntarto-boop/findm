@@ -42,18 +42,18 @@ const HeroSection = () => {
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10 text-center">
-        <div className="bg-background/70 backdrop-blur-md rounded-3xl p-8 md:p-12 shadow-2xl border border-border/50">
-          <h1 className="text-5xl md:text-7xl font-extrabold text-foreground mb-6 reveal" style={{ textShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+        <div className="bg-background/95 backdrop-blur-sm rounded-2xl px-6 py-12 md:px-16 md:py-16 border border-border">
+          <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6 reveal tracking-tight">
             Find context, not just contacts.
           </h1>
-          <p className="text-lg md:text-xl text-foreground max-w-2xl mx-auto mb-10 reveal" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 reveal leading-relaxed">
             Your AI-powered contact memory. Understand who, when, and why you connected—beyond the business card.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4 reveal">
-            <Button size="lg" className="text-lg px-8 shadow-lg" asChild>
+            <Button size="lg" className="text-lg px-8" asChild>
               <Link to="/auth">Get Started</Link>
             </Button>
-            <Button size="lg" variant="outline" className="text-lg px-8 bg-card/90 backdrop-blur-sm border-2 shadow-lg hover:bg-card" asChild>
+            <Button size="lg" variant="outline" className="text-lg px-8" asChild>
               <Link to="/product">Learn More</Link>
             </Button>
           </div>
