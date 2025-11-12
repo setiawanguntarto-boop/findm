@@ -42,7 +42,7 @@ const HeroSection = () => {
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10 text-center">
-        <div className="bg-background/95 backdrop-blur-sm rounded-2xl px-6 py-12 md:px-16 md:py-16 border border-border">
+        <div className="bg-background/70 backdrop-blur-md rounded-2xl px-6 py-12 md:px-16 md:py-16 border border-border/50">
           <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6 reveal tracking-tight">
             Find context, not just contacts.
           </h1>
