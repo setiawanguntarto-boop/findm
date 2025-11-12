@@ -68,6 +68,44 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_users: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          invited_email: string | null
+          linked_user_id: string | null
+          phone_number: string
+          verification_code: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          invited_email?: string | null
+          linked_user_id?: string | null
+          phone_number: string
+          verification_code?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          invited_email?: string | null
+          linked_user_id?: string | null
+          phone_number?: string
+          verification_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_users_linked_user_id_fkey"
+            columns: ["linked_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -75,7 +113,10 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          phone: string | null
           updated_at: string
+          whatsapp_linked_at: string | null
+          whatsapp_verified: boolean | null
         }
         Insert: {
           avatar_url?: string | null
@@ -83,7 +124,10 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          phone?: string | null
           updated_at?: string
+          whatsapp_linked_at?: string | null
+          whatsapp_verified?: boolean | null
         }
         Update: {
           avatar_url?: string | null
@@ -91,16 +135,64 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
           updated_at?: string
+          whatsapp_linked_at?: string | null
+          whatsapp_verified?: boolean | null
         }
         Relationships: []
+      }
+      whatsapp_conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          media_url: string | null
+          message_text: string
+          message_type: string
+          phone_number: string
+          user_id: string | null
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          media_url?: string | null
+          message_text: string
+          message_type: string
+          phone_number: string
+          user_id?: string | null
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          media_url?: string | null
+          message_text?: string
+          message_type?: string
+          phone_number?: string
+          user_id?: string | null
+          whatsapp_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_expired_guests: { Args: never; Returns: undefined }
+      merge_guest_user: {
+        Args: { _phone_number: string; _user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
