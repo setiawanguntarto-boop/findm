@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, LogOut, User as UserIcon, Camera, Upload, CheckCircle2, Download } from "lucide-react";
+import { Search, Plus, LogOut, User as UserIcon, Camera, Upload, CheckCircle2, Download, Scan } from "lucide-react";
 import ContactCard from "@/components/ContactCard";
 import AddContactDialog from "@/components/AddContactDialog";
 import ContactDetailDialog from "@/components/ContactDetailDialog";
@@ -25,6 +25,8 @@ import { contactSchema } from "@/utils/contactSchema";
 import logoFull from "@/assets/logo-new.png";
 import { useNavigate, Link } from "react-router-dom";
 import { parseContactFile, ParsedContact, needsManualMapping, getCSVHeaders } from "@/utils/contactParser";
+import { findDuplicateGroups, getDismissedPairs, DuplicateGroup } from "@/utils/contactDuplicateDetector";
+import { DuplicatesSection } from "@/components/DuplicatesSection";
 import {
   Table,
   TableBody,
@@ -73,10 +75,19 @@ const Dashboard = () => {
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
+  const [showDuplicates, setShowDuplicates] = useState(false);
   const cardInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const checkForDuplicates = () => {
+    if (!user) return;
+    const dismissedPairs = getDismissedPairs(user.id);
+    const groups = findDuplicateGroups(contacts, dismissedPairs);
+    setDuplicateGroups(groups);
+  };
 
   const fetchContacts = async () => {
     try {
@@ -102,6 +113,10 @@ const Dashboard = () => {
   useEffect(() => {
     fetchContacts();
   }, []);
+
+  useEffect(() => {
+    checkForDuplicates();
+  }, [contacts, user]);
 
   useEffect(() => {
     let filtered = contacts;
@@ -797,9 +812,23 @@ const Dashboard = () => {
                 <p className="text-lg text-muted-foreground">
                   {contacts.length} {contacts.length === 1 ? "contact" : "contacts"} in your database
                   {searchQuery || selectedTag ? ` (${filteredContacts.length} filtered)` : ''}
+                  {duplicateGroups.length > 0 && !showDuplicates && (
+                    <span className="text-destructive font-semibold ml-2">
+                      • {duplicateGroups.length} duplicate group{duplicateGroups.length !== 1 ? 's' : ''} found
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="flex gap-2">
+                {duplicateGroups.length > 0 && (
+                  <Button 
+                    variant={showDuplicates ? "default" : "outline"}
+                    onClick={() => setShowDuplicates(!showDuplicates)}
+                  >
+                    <Scan className="w-4 h-4 mr-2" />
+                    {showDuplicates ? 'Show All Contacts' : `Review Duplicates (${duplicateGroups.length})`}
+                  </Button>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" disabled={contacts.length === 0}>
@@ -834,73 +863,86 @@ const Dashboard = () => {
             </div>
           </header>
 
-          {/* Search Bar */}
-          <div className="relative mb-6">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              placeholder="Search contacts by name, company, or context..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-12"
+          {/* Show Duplicates Section or Contact List */}
+          {showDuplicates ? (
+            <DuplicatesSection
+              duplicateGroups={duplicateGroups}
+              onRefresh={checkForDuplicates}
+              onMerge={async (contactsToMerge, mergedContact) => {
+                const contactIdsToDelete = contactsToMerge.map(c => c.id);
+                await handleMergeContacts(mergedContact, contactIdsToDelete);
+              }}
+              userId={user?.id || ''}
             />
-          </div>
-
-          {/* Tag Filters */}
-          {allTags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-8">
-              <Button
-                variant={selectedTag === null ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedTag(null)}
-              >
-                All
-              </Button>
-              {allTags.map((tag) => (
-                <Button
-                  key={tag}
-                  variant={selectedTag === tag ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedTag(tag)}
-                >
-                  {tag}
-                </Button>
-              ))}
-            </div>
-          )}
-
-          {/* Contact List */}
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading contacts...</p>
-            </div>
-          ) : filteredContacts.length === 0 ? (
-            <div className="bg-card rounded-xl shadow-md border border-border p-12 text-center">
-              <p className="text-muted-foreground mb-4">
-                {searchQuery || selectedTag
-                  ? "No contacts match your search"
-                  : "No contacts yet. Add your first contact to get started!"}
-              </p>
-              {!searchQuery && !selectedTag && (
-                <Button onClick={() => setIsAddDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Your First Contact
-                </Button>
-              )}
-            </div>
           ) : (
             <>
-              {selectedContactIds.size > 0 && (
-                <BulkActionsToolbar
-                  selectedCount={selectedContactIds.size}
-                  onClearSelection={() => setSelectedContactIds(new Set())}
-                  onBulkDelete={handleBulkDelete}
-                  onBulkTag={handleBulkTag}
-                  onMerge={selectedContactIds.size >= 2 ? () => setIsMergeDialogOpen(true) : undefined}
+              {/* Search Bar */}
+              <div className="relative mb-6">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  placeholder="Search contacts by name, company, or context..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-12 h-12"
                 />
+              </div>
+
+              {/* Tag Filters */}
+              {allTags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-8">
+                  <Button
+                    variant={selectedTag === null ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedTag(null)}
+                  >
+                    All
+                  </Button>
+                  {allTags.map((tag) => (
+                    <Button
+                      key={tag}
+                      variant={selectedTag === tag ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedTag(tag)}
+                    >
+                      {tag}
+                    </Button>
+                  ))}
+                </div>
               )}
-              
-              <div className="bg-card rounded-xl shadow-md border border-border overflow-hidden">
-                <Table>
+
+              {/* Contact List */}
+              {loading ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Loading contacts...</p>
+                </div>
+              ) : filteredContacts.length === 0 ? (
+                <div className="bg-card rounded-xl shadow-md border border-border p-12 text-center">
+                  <p className="text-muted-foreground mb-4">
+                    {searchQuery || selectedTag
+                      ? "No contacts match your search"
+                      : "No contacts yet. Add your first contact to get started!"}
+                  </p>
+                  {!searchQuery && !selectedTag && (
+                    <Button onClick={() => setIsAddDialogOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Your First Contact
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {selectedContactIds.size > 0 && (
+                    <BulkActionsToolbar
+                      selectedCount={selectedContactIds.size}
+                      onClearSelection={() => setSelectedContactIds(new Set())}
+                      onBulkDelete={handleBulkDelete}
+                      onBulkTag={handleBulkTag}
+                      onMerge={selectedContactIds.size >= 2 ? () => setIsMergeDialogOpen(true) : undefined}
+                    />
+                  )}
+                  
+                  <div className="bg-card rounded-xl shadow-md border border-border overflow-hidden">
+                    <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12">
@@ -986,8 +1028,10 @@ const Dashboard = () => {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
-              </div>
+                    </Table>
+                  </div>
+                </>
+              )}
             </>
           )}
         </section>
