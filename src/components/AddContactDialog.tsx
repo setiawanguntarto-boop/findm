@@ -35,6 +35,8 @@ const AddContactDialog = ({ open, onOpenChange, onContactAdded, initialData }: A
     context_notes: "",
     meeting_location: "",
     meeting_date: "",
+    follow_up_date: "",
+    follow_up_notes: "",
   });
   const { toast } = useToast();
   const { user } = useAuth();
@@ -74,6 +76,8 @@ const AddContactDialog = ({ open, onOpenChange, onContactAdded, initialData }: A
         context_notes: formData.context_notes || null,
         meeting_location: formData.meeting_location || null,
         meeting_date: formData.meeting_date || null,
+        follow_up_date: formData.follow_up_date || null,
+        follow_up_notes: formData.follow_up_notes || null,
         tags: tagsArray.length > 0 ? tagsArray : null,
       });
 
@@ -88,6 +92,8 @@ const AddContactDialog = ({ open, onOpenChange, onContactAdded, initialData }: A
         context_notes: validatedData.context_notes,
         meeting_location: validatedData.meeting_location,
         meeting_date: validatedData.meeting_date,
+        follow_up_date: validatedData.follow_up_date,
+        follow_up_notes: validatedData.follow_up_notes,
         source: "manual",
       });
 
@@ -108,6 +114,8 @@ const AddContactDialog = ({ open, onOpenChange, onContactAdded, initialData }: A
         context_notes: "",
         meeting_location: "",
         meeting_date: "",
+        follow_up_date: "",
+        follow_up_notes: "",
       });
       onContactAdded();
       onOpenChange(false);
@@ -194,6 +202,15 @@ const AddContactDialog = ({ open, onOpenChange, onContactAdded, initialData }: A
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="follow_up_date">Follow-up Date</Label>
+              <Input
+                id="follow_up_date"
+                type="date"
+                value={formData.follow_up_date}
+                onChange={(e) => setFormData({ ...formData, follow_up_date: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="tags">Tags (comma-separated)</Label>
               <Input
                 id="tags"
@@ -211,6 +228,16 @@ const AddContactDialog = ({ open, onOpenChange, onContactAdded, initialData }: A
               value={formData.context_notes}
               onChange={(e) => setFormData({ ...formData, context_notes: e.target.value })}
               rows={4}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="follow_up_notes">Follow-up Notes</Label>
+            <Textarea
+              id="follow_up_notes"
+              placeholder="What should you discuss or remember during the follow-up?"
+              value={formData.follow_up_notes}
+              onChange={(e) => setFormData({ ...formData, follow_up_notes: e.target.value })}
+              rows={3}
             />
           </div>
           <div className="flex justify-end gap-3">

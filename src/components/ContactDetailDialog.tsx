@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Contact } from "@/pages/Dashboard";
-import { Mail, Phone, Building2, MapPin, Calendar, Edit, Trash2, Save, X } from "lucide-react";
+import { Mail, Phone, Building2, MapPin, Calendar, Edit, Trash2, Save, X, Bell } from "lucide-react";
 import { contactSchema } from "@/utils/contactSchema";
 import { z } from "zod";
 
@@ -38,6 +38,8 @@ const ContactDetailDialog = ({
     setFormData({
       ...contact,
       tags: contact.tags || [],
+      follow_up_date: contact.follow_up_date || "",
+      follow_up_notes: contact.follow_up_notes || "",
     });
     setIsEditing(true);
   };
@@ -61,6 +63,8 @@ const ContactDetailDialog = ({
         context_notes: formData.context_notes || null,
         meeting_location: formData.meeting_location || null,
         meeting_date: formData.meeting_date || null,
+        follow_up_date: formData.follow_up_date || null,
+        follow_up_notes: formData.follow_up_notes || null,
         tags: tagsArray.length > 0 ? tagsArray : null,
       });
 
@@ -224,6 +228,14 @@ const ContactDetailDialog = ({
                 />
               </div>
               <div className="space-y-2">
+                <Label>Follow-up Date</Label>
+                <Input
+                  type="date"
+                  value={formData.follow_up_date || ""}
+                  onChange={(e) => setFormData({ ...formData, follow_up_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Tags (comma-separated)</Label>
                 <Input
                   value={(formData as any).tagsInput || (formData.tags || []).join(", ")}
@@ -239,6 +251,15 @@ const ContactDetailDialog = ({
                 value={formData.context_notes || ""}
                 onChange={(e) => setFormData({ ...formData, context_notes: e.target.value })}
                 rows={4}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Follow-up Notes</Label>
+              <Textarea
+                value={formData.follow_up_notes || ""}
+                onChange={(e) => setFormData({ ...formData, follow_up_notes: e.target.value })}
+                rows={3}
+                placeholder="What should you discuss or remember during the follow-up?"
               />
             </div>
           </div>
@@ -295,6 +316,17 @@ const ContactDetailDialog = ({
                 <div className="flex items-center gap-3">
                   <Calendar className="w-5 h-5 text-muted-foreground" />
                   <span>{formatDate(contact.meeting_date)}</span>
+                </div>
+              )}
+              {contact.follow_up_date && (
+                <div className="flex items-center gap-3">
+                  <Bell className="w-5 h-5 text-muted-foreground" />
+                  <div>
+                    <span className="font-medium">Follow-up: {formatDate(contact.follow_up_date)}</span>
+                    {contact.follow_up_notes && (
+                      <p className="text-sm text-muted-foreground mt-1">{contact.follow_up_notes}</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

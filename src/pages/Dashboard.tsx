@@ -14,6 +14,8 @@ import { BulkActionsToolbar } from "@/components/BulkActionsToolbar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { ContactMergeDialog } from "@/components/ContactMergeDialog";
+import { AdvancedFilterPanel, FilterState, SortOption } from "@/components/AdvancedFilterPanel";
+import { FollowUpRemindersSection } from "@/components/FollowUpRemindersSection";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +50,8 @@ export interface Contact {
   context_notes?: string;
   meeting_location?: string;
   meeting_date?: string;
+  follow_up_date?: string;
+  follow_up_notes?: string;
   source?: string;
   avatar_url?: string;
   created_at: string;
@@ -59,6 +63,42 @@ const Dashboard = () => {
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  
+  // Advanced filters state
+  const [filterState, setFilterState] = useState<FilterState>({
+    tags: [],
+    tagLogic: "OR",
+    companies: [],
+    sources: [],
+    meetingDateFrom: undefined,
+    meetingDateTo: undefined,
+    createdDateFrom: undefined,
+    createdDateTo: undefined,
+    followUpFilter: "all",
+    sortBy: "created-desc",
+  });
+
+  // Load filters from localStorage when user is available
+  useEffect(() => {
+    if (user) {
+      const saved = localStorage.getItem(`filters-${user.id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          // Convert date strings back to Date objects
+          setFilterState({
+            ...parsed,
+            meetingDateFrom: parsed.meetingDateFrom ? new Date(parsed.meetingDateFrom) : undefined,
+            meetingDateTo: parsed.meetingDateTo ? new Date(parsed.meetingDateTo) : undefined,
+            createdDateTo: parsed.createdDateTo ? new Date(parsed.createdDateTo) : undefined,
+            createdDateFrom: parsed.createdDateFrom ? new Date(parsed.createdDateFrom) : undefined,
+          });
+        } catch {
+          // If parsing fails, keep default
+        }
+      }
+    }
+  }, [user]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +106,8 @@ const Dashboard = () => {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [extractedData, setExtractedData] = useState<any>(null);
   const [parsedContacts, setParsedContacts] = useState<ParsedContact[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isCardProcessing, setIsCardProcessing] = useState(false);
+  const [isImportProcessing, setIsImportProcessing] = useState(false);
   const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
   const [isFieldMappingOpen, setIsFieldMappingOpen] = useState(false);
   const [csvHeaders, setCSVHeaders] = useState<string[]>([]);
@@ -118,9 +159,25 @@ const Dashboard = () => {
     checkForDuplicates();
   }, [contacts, user]);
 
+  // Save filters to localStorage (serialize dates as ISO strings)
   useEffect(() => {
-    let filtered = contacts;
+    if (user) {
+      const toSave = {
+        ...filterState,
+        meetingDateFrom: filterState.meetingDateFrom?.toISOString(),
+        meetingDateTo: filterState.meetingDateTo?.toISOString(),
+        createdDateFrom: filterState.createdDateFrom?.toISOString(),
+        createdDateTo: filterState.createdDateTo?.toISOString(),
+      };
+      localStorage.setItem(`filters-${user.id}`, JSON.stringify(toSave));
+    }
+  }, [filterState, user]);
 
+  // Advanced filtering and sorting logic
+  useEffect(() => {
+    let filtered = [...contacts];
+
+    // Text search
     if (searchQuery) {
       filtered = filtered.filter(
         (contact) =>
@@ -131,18 +188,195 @@ const Dashboard = () => {
       );
     }
 
+    // Tag filtering (AND/OR logic)
+    if (filterState.tags.length > 0) {
+      if (filterState.tagLogic === "AND") {
+        filtered = filtered.filter((contact) =>
+          filterState.tags.every((tag) => contact.tags?.includes(tag))
+        );
+      } else {
+        // OR logic
+        filtered = filtered.filter((contact) =>
+          filterState.tags.some((tag) => contact.tags?.includes(tag))
+        );
+      }
+    }
+
+    // Legacy tag filter (for backward compatibility)
     if (selectedTag) {
       filtered = filtered.filter((contact) =>
         contact.tags?.includes(selectedTag)
       );
     }
 
+    // Company filtering
+    if (filterState.companies.length > 0) {
+      filtered = filtered.filter((contact) =>
+        contact.company && filterState.companies.includes(contact.company)
+      );
+    }
+
+    // Source filtering
+    if (filterState.sources.length > 0) {
+      filtered = filtered.filter((contact) =>
+        contact.source && filterState.sources.includes(contact.source)
+      );
+    }
+
+    // Meeting date range filtering
+    if (filterState.meetingDateFrom || filterState.meetingDateTo) {
+      filtered = filtered.filter((contact) => {
+        if (!contact.meeting_date) return false;
+        const meetingDate = new Date(contact.meeting_date);
+        const from = filterState.meetingDateFrom;
+        const to = filterState.meetingDateTo;
+        
+        if (from && to) {
+          return meetingDate >= from && meetingDate <= to;
+        } else if (from) {
+          return meetingDate >= from;
+        } else if (to) {
+          return meetingDate <= to;
+        }
+        return true;
+      });
+    }
+
+    // Created date range filtering
+    if (filterState.createdDateFrom || filterState.createdDateTo) {
+      filtered = filtered.filter((contact) => {
+        const createdDate = new Date(contact.created_at);
+        const from = filterState.createdDateFrom;
+        const to = filterState.createdDateTo;
+        
+        if (from && to) {
+          return createdDate >= from && createdDate <= to;
+        } else if (from) {
+          return createdDate >= from;
+        } else if (to) {
+          return createdDate <= to;
+        }
+        return true;
+      });
+    }
+
+    // Follow-up filtering
+    if (filterState.followUpFilter !== "all" && filterState.followUpFilter) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekFromNow = new Date(today);
+      weekFromNow.setDate(weekFromNow.getDate() + 7);
+
+      filtered = filtered.filter((contact) => {
+        if (!contact.follow_up_date) return false;
+        
+        try {
+          const followUpDate = new Date(contact.follow_up_date);
+          
+          // Validate date
+          if (isNaN(followUpDate.getTime())) {
+            return false;
+          }
+          
+          const followUpDay = new Date(followUpDate.getFullYear(), followUpDate.getMonth(), followUpDate.getDate());
+
+          switch (filterState.followUpFilter) {
+            case "upcoming":
+              return followUpDate >= now;
+            case "overdue":
+              return followUpDate < today;
+            case "today":
+              return followUpDay.getTime() === today.getTime();
+            case "thisWeek":
+              return followUpDate >= today && followUpDate <= weekFromNow;
+            default:
+              return true;
+          }
+        } catch (error) {
+          console.error('Error filtering by follow-up date:', error, contact);
+          return false;
+        }
+      });
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      switch (filterState.sortBy) {
+        case "name-asc":
+          return a.name.localeCompare(b.name);
+        case "name-desc":
+          return b.name.localeCompare(a.name);
+        case "company-asc":
+          return (a.company || "").localeCompare(b.company || "");
+        case "company-desc":
+          return (b.company || "").localeCompare(a.company || "");
+        case "date-asc":
+          if (!a.meeting_date && !b.meeting_date) return 0;
+          if (!a.meeting_date) return 1;
+          if (!b.meeting_date) return -1;
+          return new Date(a.meeting_date).getTime() - new Date(b.meeting_date).getTime();
+        case "date-desc":
+          if (!a.meeting_date && !b.meeting_date) return 0;
+          if (!a.meeting_date) return 1;
+          if (!b.meeting_date) return -1;
+          return new Date(b.meeting_date).getTime() - new Date(a.meeting_date).getTime();
+        case "created-asc":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "created-desc":
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+
     setFilteredContacts(filtered);
-  }, [searchQuery, selectedTag, contacts]);
+  }, [searchQuery, selectedTag, contacts, filterState]);
 
   const allTags = Array.from(
     new Set(contacts.flatMap((c) => c.tags || []))
   ).sort();
+
+  const allCompanies = Array.from(
+    new Set(contacts.map((c) => c.company).filter(Boolean) as string[])
+  ).sort();
+
+  const allSources = Array.from(
+    new Set(contacts.map((c) => c.source).filter(Boolean) as string[])
+  ).sort();
+
+  // Calculate active filter count
+  const activeFilterCount = 
+    filterState.tags.length +
+    filterState.companies.length +
+    filterState.sources.length +
+    (filterState.meetingDateFrom || filterState.meetingDateTo ? 1 : 0) +
+    (filterState.createdDateFrom || filterState.createdDateTo ? 1 : 0) +
+    (filterState.followUpFilter !== "all" ? 1 : 0) +
+    (filterState.sortBy !== "created-desc" ? 1 : 0);
+
+  const handleFilterChange = (newFilters: FilterState) => {
+    setFilterState(newFilters);
+    // Clear legacy tag selection when using advanced filters
+    if (newFilters.tags.length > 0) {
+      setSelectedTag(null);
+    }
+  };
+
+  const handleClearFilters = () => {
+    const defaultFilters: FilterState = {
+      tags: [],
+      tagLogic: "OR",
+      companies: [],
+      sources: [],
+      meetingDateFrom: undefined,
+      meetingDateTo: undefined,
+      createdDateFrom: undefined,
+      createdDateTo: undefined,
+      followUpFilter: "all",
+      sortBy: "created-desc",
+    };
+    setFilterState(defaultFilters);
+    setSelectedTag(null);
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -158,7 +392,7 @@ const Dashboard = () => {
 
     console.log('📤 Starting business card upload:', file.name, file.size, file.type);
     setCardFile(file);
-    setIsProcessing(true);
+    setIsCardProcessing(true);
 
     try {
       // Convert file to base64
@@ -219,6 +453,7 @@ const Dashboard = () => {
           setExtractedData(data.contactInfo);
           console.log('📝 Set extracted data state');
           
+          setIsCardProcessing(false);
           setIsConfirmationOpen(true);
           console.log('🎯 Opened confirmation dialog');
           
@@ -246,7 +481,11 @@ const Dashboard = () => {
         variant: "destructive",
       });
       setCardFile(null);
-      setIsProcessing(false);
+      setIsCardProcessing(false);
+      // Reset file input
+      if (cardInputRef.current) {
+        cardInputRef.current.value = '';
+      }
     }
   };
 
@@ -255,7 +494,7 @@ const Dashboard = () => {
     if (!file) return;
 
     setImportFile(file);
-    setIsProcessing(true);
+    setIsImportProcessing(true);
 
     try {
       toast({
@@ -274,6 +513,7 @@ const Dashboard = () => {
         setCSVHeaders(result.headers);
         setCSVSampleData(result.data);
         setPendingFile(file);
+        setIsImportProcessing(false);
         setIsFieldMappingOpen(true);
         
         toast({
@@ -289,6 +529,7 @@ const Dashboard = () => {
         }
 
         setParsedContacts(contacts);
+        setIsImportProcessing(false);
         setIsImportPreviewOpen(true);
         
         toast({
@@ -305,8 +546,12 @@ const Dashboard = () => {
         variant: "destructive",
       });
       setImportFile(null);
+      // Reset file input
+      if (importInputRef.current) {
+        importInputRef.current.value = '';
+      }
     } finally {
-      setIsProcessing(false);
+      setIsImportProcessing(false);
     }
   };
 
@@ -350,7 +595,14 @@ const Dashboard = () => {
 
       setExtractedData(null);
       setCardFile(null);
+      setIsCardProcessing(false);
+      setIsConfirmationOpen(false);
       fetchContacts();
+      
+      // Reset file input
+      if (cardInputRef.current) {
+        cardInputRef.current.value = '';
+      }
     } catch (error: any) {
       console.error('Error saving contact:', error);
       toast({
@@ -363,6 +615,7 @@ const Dashboard = () => {
 
   const handleEditConfirmation = () => {
     setIsConfirmationOpen(false);
+    setIsCardProcessing(false);
     setIsAddDialogOpen(true);
   };
 
@@ -370,7 +623,7 @@ const Dashboard = () => {
     if (!pendingFile) return;
 
     setIsFieldMappingOpen(false);
-    setIsProcessing(true);
+    setIsImportProcessing(true);
 
     try {
       toast({
@@ -385,6 +638,7 @@ const Dashboard = () => {
       }
 
       setParsedContacts(contacts);
+      setIsImportProcessing(false);
       setIsImportPreviewOpen(true);
       setPendingFile(null);
       
@@ -401,8 +655,12 @@ const Dashboard = () => {
         variant: "destructive",
       });
       setImportFile(null);
+      // Reset file input
+      if (importInputRef.current) {
+        importInputRef.current.value = '';
+      }
     } finally {
-      setIsProcessing(false);
+      setIsImportProcessing(false);
     }
   };
 
@@ -698,6 +956,16 @@ const Dashboard = () => {
           </p>
         </header>
 
+        {/* Follow-up Reminders Section */}
+        {contacts.filter((c) => c.follow_up_date).length > 0 && (
+          <div className="mb-12">
+            <FollowUpRemindersSection
+              contacts={contacts}
+              onContactClick={(contact) => setSelectedContact(contact)}
+            />
+          </div>
+        )}
+
         {/* Dashboard Tools Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
           {/* Tool 1: Scan Name Card */}
@@ -717,7 +985,7 @@ const Dashboard = () => {
                 htmlFor="name-card-upload"
                 className="flex flex-col items-center justify-center w-full h-48 p-6 border-2 border-dashed border-border rounded-lg text-center cursor-pointer hover:border-foreground transition-colors"
               >
-                {isProcessing ? (
+                {isCardProcessing ? (
                   <>
                     <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
                     <p className="text-lg font-medium text-foreground">Processing...</p>
@@ -768,7 +1036,7 @@ const Dashboard = () => {
                 htmlFor="contact-file-upload"
                 className="flex flex-col items-center justify-center w-full h-48 p-6 border-2 border-dashed border-border rounded-lg text-center cursor-pointer hover:border-foreground transition-colors"
               >
-                {isProcessing ? (
+                {isImportProcessing ? (
                   <>
                     <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
                     <p className="text-lg font-medium text-foreground">Processing...</p>
@@ -840,7 +1108,7 @@ const Dashboard = () => {
                     <DropdownMenuItem onClick={() => handleExportCSV('all')}>
                       Export All Contacts ({contacts.length})
                     </DropdownMenuItem>
-                    {(searchQuery || selectedTag) && filteredContacts.length > 0 && (
+                    {(searchQuery || selectedTag || activeFilterCount > 0) && filteredContacts.length > 0 && (
                       <DropdownMenuItem onClick={() => handleExportCSV('filtered')}>
                         Export Filtered Contacts ({filteredContacts.length})
                       </DropdownMenuItem>
@@ -877,7 +1145,7 @@ const Dashboard = () => {
           ) : (
             <>
               {/* Search Bar */}
-              <div className="relative mb-6">
+              <div className="relative mb-4">
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   placeholder="Search contacts by name, company, or context..."
@@ -887,9 +1155,22 @@ const Dashboard = () => {
                 />
               </div>
 
-              {/* Tag Filters */}
-              {allTags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-8">
+              {/* Advanced Filter Panel */}
+              <div className="mb-6">
+                <AdvancedFilterPanel
+                  allTags={allTags}
+                  allCompanies={allCompanies}
+                  allSources={allSources}
+                  filterState={filterState}
+                  onFilterChange={handleFilterChange}
+                  onClearFilters={handleClearFilters}
+                  activeFilterCount={activeFilterCount}
+                />
+              </div>
+
+              {/* Legacy Tag Filters (for quick access) */}
+              {allTags.length > 0 && filterState.tags.length === 0 && (
+                <div className="flex flex-wrap gap-2 mb-6">
                   <Button
                     variant={selectedTag === null ? "default" : "outline"}
                     size="sm"
@@ -918,11 +1199,11 @@ const Dashboard = () => {
               ) : filteredContacts.length === 0 ? (
                 <div className="bg-card rounded-xl shadow-md border border-border p-12 text-center">
                   <p className="text-muted-foreground mb-4">
-                    {searchQuery || selectedTag
-                      ? "No contacts match your search"
+                    {searchQuery || selectedTag || activeFilterCount > 0
+                      ? "No contacts match your search or filters"
                       : "No contacts yet. Add your first contact to get started!"}
                   </p>
-                  {!searchQuery && !selectedTag && (
+                  {!searchQuery && !selectedTag && activeFilterCount === 0 && (
                     <Button onClick={() => setIsAddDialogOpen(true)}>
                       <Plus className="w-4 h-4 mr-2" />
                       Add Your First Contact
@@ -1044,6 +1325,11 @@ const Dashboard = () => {
           if (!open) {
             setExtractedData(null);
             setCardFile(null);
+            setIsCardProcessing(false);
+            // Reset file input
+            if (cardInputRef.current) {
+              cardInputRef.current.value = '';
+            }
           }
         }}
         contactData={extractedData || { name: "" }}
@@ -1060,6 +1346,11 @@ const Dashboard = () => {
           if (!open) {
             setExtractedData(null);
             setCardFile(null);
+            setIsCardProcessing(false);
+            // Reset file input
+            if (cardInputRef.current) {
+              cardInputRef.current.value = '';
+            }
           }
         }}
         onContactAdded={fetchContacts}
@@ -1081,6 +1372,11 @@ const Dashboard = () => {
           if (!open) {
             setImportFile(null);
             setParsedContacts([]);
+            setIsImportProcessing(false);
+            // Reset file input
+            if (importInputRef.current) {
+              importInputRef.current.value = '';
+            }
           }
         }}
         contacts={parsedContacts}
@@ -1094,7 +1390,12 @@ const Dashboard = () => {
           if (!open) {
             setImportFile(null);
             setPendingFile(null);
+            setIsImportProcessing(false);
             setCSVHeaders([]);
+            // Reset file input
+            if (importInputRef.current) {
+              importInputRef.current.value = '';
+            }
             setCSVSampleData([]);
           }
         }}

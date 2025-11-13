@@ -46,6 +46,16 @@ export const contactSchema = z.object({
     .optional()
     .nullable()
     .or(z.literal("")),
+  follow_up_date: z.string()
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  follow_up_notes: z.string()
+    .trim()
+    .max(1000, "Follow-up notes must be less than 1000 characters")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
   tags: z.array(z.string().trim().max(50))
     .optional()
     .nullable(),
