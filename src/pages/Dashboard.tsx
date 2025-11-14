@@ -120,6 +120,10 @@ const Dashboard = () => {
   const [showDuplicates, setShowDuplicates] = useState(false);
   const cardInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const cardDropZoneRef = useRef<HTMLDivElement>(null);
+  const importDropZoneRef = useRef<HTMLDivElement>(null);
+  const [isCardDragOver, setIsCardDragOver] = useState(false);
+  const [isImportDragOver, setIsImportDragOver] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -380,13 +384,117 @@ const Dashboard = () => {
 
   const handleSignOut = async () => {
     await signOut();
+    // Clear all local storage and session data
+    localStorage.clear();
+    sessionStorage.clear();
     navigate("/");
+  };
+
+  // Drag and drop handlers for card upload
+  const handleCardDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsCardDragOver(true);
+  };
+
+  const handleCardDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsCardDragOver(false);
+  };
+
+  const handleCardDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsCardDragOver(false);
+
+    const file = e.dataTransfer.files[0];
+    if (file && cardInputRef.current) {
+      // Create a fake event to reuse existing validation logic
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      cardInputRef.current.files = dataTransfer.files;
+      const fakeEvent = { target: cardInputRef.current } as React.ChangeEvent<HTMLInputElement>;
+      handleCardUpload(fakeEvent);
+    }
+  };
+
+  // Drag and drop handlers for import upload
+  const handleImportDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsImportDragOver(true);
+  };
+
+  const handleImportDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsImportDragOver(false);
+  };
+
+  const handleImportDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsImportDragOver(false);
+
+    const file = e.dataTransfer.files[0];
+    if (file && importInputRef.current) {
+      // Create a fake event to reuse existing validation logic
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      importInputRef.current.files = dataTransfer.files;
+      const fakeEvent = { target: importInputRef.current } as React.ChangeEvent<HTMLInputElement>;
+      handleImportUpload(fakeEvent);
+    }
+  };
+
+  // Keyboard handlers for accessibility
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      cardInputRef.current?.click();
+    }
+  };
+
+  const handleImportKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      importInputRef.current?.click();
+    }
   };
 
   const handleCardUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) {
       console.log('No file selected');
+      return;
+    }
+
+    // Validate file type
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a PNG or JPG image file.",
+        variant: "destructive",
+      });
+      if (cardInputRef.current) {
+        cardInputRef.current.value = '';
+      }
+      return;
+    }
+
+    // Validate file size (5MB = 5 * 1024 * 1024 bytes)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: `File size must be less than 5MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`,
+        variant: "destructive",
+      });
+      if (cardInputRef.current) {
+        cardInputRef.current.value = '';
+      }
       return;
     }
 
@@ -492,6 +600,35 @@ const Dashboard = () => {
   const handleImportUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Validate file type
+    const validExtensions = ['.csv', '.vcf'];
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!validExtensions.includes(fileExtension)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a CSV or VCF file. Supported formats: .csv, .vcf",
+        variant: "destructive",
+      });
+      if (importInputRef.current) {
+        importInputRef.current.value = '';
+      }
+      return;
+    }
+
+    // Validate file size (10MB = 10 * 1024 * 1024 bytes)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: `File size must be less than 10MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`,
+        variant: "destructive",
+      });
+      if (importInputRef.current) {
+        importInputRef.current.value = '';
+      }
+      return;
+    }
 
     setImportFile(file);
     setIsImportProcessing(true);
@@ -981,9 +1118,21 @@ const Dashboard = () => {
             </p>
 
             <div className="w-full">
-              <label
-                htmlFor="name-card-upload"
-                className="flex flex-col items-center justify-center w-full h-48 p-6 border-2 border-dashed border-border rounded-lg text-center cursor-pointer hover:border-foreground transition-colors"
+              <div
+                ref={cardDropZoneRef}
+                onDragOver={handleCardDragOver}
+                onDragLeave={handleCardDragLeave}
+                onDrop={handleCardDrop}
+                className={`flex flex-col items-center justify-center w-full h-48 p-6 border-2 border-dashed rounded-lg text-center transition-colors ${
+                  isCardDragOver 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-border hover:border-foreground cursor-pointer'
+                }`}
+                role="button"
+                tabIndex={0}
+                aria-label="Upload business card image. Drag and drop or click to select. PNG or JPG, max 5MB."
+                onKeyDown={handleCardKeyDown}
+                onClick={() => cardInputRef.current?.click()}
               >
                 {isCardProcessing ? (
                   <>
@@ -1007,6 +1156,9 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground mt-2">PNG or JPG. Max 5MB.</p>
                   </>
                 )}
+              </div>
+              <label htmlFor="name-card-upload" className="sr-only">
+                Upload business card image
               </label>
               <input
                 ref={cardInputRef}
@@ -1032,9 +1184,21 @@ const Dashboard = () => {
             </p>
 
             <div className="w-full">
-              <label
-                htmlFor="contact-file-upload"
-                className="flex flex-col items-center justify-center w-full h-48 p-6 border-2 border-dashed border-border rounded-lg text-center cursor-pointer hover:border-foreground transition-colors"
+              <div
+                ref={importDropZoneRef}
+                onDragOver={handleImportDragOver}
+                onDragLeave={handleImportDragLeave}
+                onDrop={handleImportDrop}
+                className={`flex flex-col items-center justify-center w-full h-48 p-6 border-2 border-dashed rounded-lg text-center transition-colors ${
+                  isImportDragOver 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-border hover:border-foreground cursor-pointer'
+                }`}
+                role="button"
+                tabIndex={0}
+                aria-label="Upload contact file. Drag and drop or click to select. CSV or VCF, max 10MB."
+                onKeyDown={handleImportKeyDown}
+                onClick={() => importInputRef.current?.click()}
               >
                 {isImportProcessing ? (
                   <>
@@ -1058,6 +1222,9 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground mt-2">VCF or CSV. Max 10MB.</p>
                   </>
                 )}
+              </div>
+              <label htmlFor="contact-file-upload" className="sr-only">
+                Upload contact file
               </label>
               <input
                 ref={importInputRef}
